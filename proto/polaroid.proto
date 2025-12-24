@@ -1,0 +1,751 @@
+syntax = "proto3";
+
+package polaroid.v1;
+
+// Main DataFrame service - all operations are immutable and return new handles
+service DataFrameService {
+    // ===== File I/O Operations =====
+    
+    // Read from Parquet with optional predicate/projection pushdown
+    rpc ReadParquet(ReadParquetRequest) returns (DataFrameHandle);
+    
+    // Read from CSV with schema inference
+    rpc ReadCsv(ReadCsvRequest) returns (DataFrameHandle);
+    
+    // Write DataFrame to Parquet
+    rpc WriteParquet(WriteParquetRequest) returns (WriteResponse);
+    
+    // Write DataFrame to CSV
+    rpc WriteCsv(WriteCsvRequest) returns (WriteResponse);
+    
+    // ===== Network Data Sources (Streaming) =====
+    
+    // Connect to WebSocket and stream data
+    rpc StreamWebSocket(WebSocketSourceRequest) returns (stream ArrowBatch);
+    
+    // Load data from REST API with pagination support
+    rpc StreamRestApi(RestApiRequest) returns (stream ArrowBatch);
+    
+    // Connect to another gRPC service and stream data
+    rpc StreamGrpc(GrpcStreamRequest) returns (stream ArrowBatch);
+    
+    // Subscribe to message queue/event stream
+    rpc StreamMessageQueue(MessageQueueRequest) returns (stream ArrowBatch);
+    
+    // ===== Core DataFrame Operations =====
+    // All operations return new DataFrameHandle (immutable)
+    
+    rpc Filter(FilterRequest) returns (DataFrameHandle);
+    rpc Select(SelectRequest) returns (DataFrameHandle);
+    rpc WithColumn(WithColumnRequest) returns (DataFrameHandle);
+    rpc WithColumns(WithColumnsRequest) returns (DataFrameHandle);
+    rpc Drop(DropRequest) returns (DataFrameHandle);
+    rpc Rename(RenameRequest) returns (DataFrameHandle);
+    rpc Sort(SortRequest) returns (DataFrameHandle);
+    rpc Unique(UniqueRequest) returns (DataFrameHandle);
+    rpc Limit(LimitRequest) returns (DataFrameHandle);
+    rpc Head(HeadRequest) returns (DataFrameHandle);
+    rpc Tail(TailRequest) returns (DataFrameHandle);
+    rpc Slice(SliceRequest) returns (DataFrameHandle);
+    
+    // ===== Aggregation Operations =====
+    
+    rpc GroupBy(GroupByRequest) returns (GroupByHandle);
+    rpc Agg(AggRequest) returns (DataFrameHandle);
+    rpc Pivot(PivotRequest) returns (DataFrameHandle);
+    rpc Melt(MeltRequest) returns (DataFrameHandle);
+    
+    // ===== Join Operations =====
+    
+    rpc Join(JoinRequest) returns (DataFrameHandle);
+    rpc Cross(CrossRequest) returns (DataFrameHandle);
+    
+    // ===== Time-Series Operations =====
+    
+    // Convert to TimeSeriesFrame
+    rpc AsTimeSeries(AsTimeSeriesRequest) returns (TimeSeriesHandle);
+    
+    // Resample time-series data
+    rpc Resample(ResampleRequest) returns (DataFrameHandle);
+    
+    // Rolling window operations
+    rpc RollingWindow(RollingWindowRequest) returns (DataFrameHandle);
+    
+    // Lag/Lead operations
+    rpc Lag(LagRequest) returns (DataFrameHandle);
+    rpc Lead(LeadRequest) returns (DataFrameHandle);
+    
+    // Difference operations
+    rpc Diff(DiffRequest) returns (DataFrameHandle);
+    rpc PctChange(PctChangeRequest) returns (DataFrameHandle);
+    
+    // Time-series join (asof)
+    rpc AsofJoin(AsofJoinRequest) returns (DataFrameHandle);
+    
+    // Fill operations
+    rpc FillNull(FillNullRequest) returns (DataFrameHandle);
+    rpc FillNan(FillNanRequest) returns (DataFrameHandle);
+    rpc Interpolate(InterpolateRequest) returns (DataFrameHandle);
+    
+    // ===== Execution & Collection =====
+    
+    // Collect all data (returns Arrow IPC stream)
+    rpc Collect(CollectRequest) returns (stream ArrowBatch);
+    
+    // Collect with streaming execution
+    rpc CollectStreaming(CollectStreamingRequest) returns (stream ArrowBatch);
+    
+    // Lazy execution - returns optimized plan
+    rpc Explain(ExplainRequest) returns (ExplainResponse);
+    
+    // ===== Metadata Operations =====
+    
+    rpc GetSchema(GetSchemaRequest) returns (SchemaResponse);
+    rpc GetShape(GetShapeRequest) returns (ShapeResponse);
+    rpc GetStats(GetStatsRequest) returns (StatsResponse);
+    rpc Describe(DescribeRequest) returns (DataFrameHandle);
+    
+    // ===== Handle Management =====
+    
+    // Create DataFrame from Arrow IPC data
+    rpc CreateFromArrow(CreateFromArrowRequest) returns (DataFrameHandle);
+    
+    // Clone a handle (cheap - shares underlying data)
+    rpc Clone(CloneRequest) returns (DataFrameHandle);
+    
+    // Drop handle and free resources
+    rpc DropHandle(DropHandleRequest) returns (DropHandleResponse);
+    
+    // Keep handle alive (extend TTL)
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// ===== Common Messages =====
+
+message DataFrameHandle {
+    string handle = 1;          // Unique identifier for server-side DataFrame
+    optional string error = 2;  // Error message if operation failed
+}
+
+message TimeSeriesHandle {
+    string handle = 1;
+    string timestamp_column = 2;
+    string frequency = 3;  // "tick", "1s", "1m", "1h", "1d", etc.
+    optional string error = 4;
+}
+
+message GroupByHandle {
+    string handle = 1;
+    repeated string group_columns = 2;
+    optional string error = 3;
+}
+
+message ArrowBatch {
+    bytes arrow_ipc = 1;        // Arrow IPC format (RecordBatch)
+    optional string error = 2;
+}
+
+message Expression {
+    oneof expr {
+        ColumnExpr column = 1;
+        LiteralExpr literal = 2;
+        BinaryExpr binary = 3;
+        UnaryExpr unary = 4;
+        FunctionExpr function = 5;
+        AggExpr aggregation = 6;
+        WindowExpr window = 7;
+        CaseExpr case_expr = 8;
+    }
+}
+
+message ColumnExpr {
+    string name = 1;
+}
+
+message LiteralExpr {
+    oneof value {
+        int64 int_val = 1;
+        double float_val = 2;
+        string string_val = 3;
+        bool bool_val = 4;
+        bytes bytes_val = 5;
+    }
+}
+
+message BinaryExpr {
+    Expression left = 1;
+    BinaryOperator op = 2;
+    Expression right = 3;
+}
+
+enum BinaryOperator {
+    BINARY_OPERATOR_UNSPECIFIED = 0;
+    EQ = 1;
+    NEQ = 2;
+    LT = 3;
+    LTE = 4;
+    GT = 5;
+    GTE = 6;
+    PLUS = 7;
+    MINUS = 8;
+    MULTIPLY = 9;
+    DIVIDE = 10;
+    MODULO = 11;
+    AND = 12;
+    OR = 13;
+}
+
+message UnaryExpr {
+    UnaryOperator op = 1;
+    Expression expr = 2;
+}
+
+enum UnaryOperator {
+    UNARY_OPERATOR_UNSPECIFIED = 0;
+    NOT = 1;
+    NEGATE = 2;
+    IS_NULL = 3;
+    IS_NOT_NULL = 4;
+    ABS = 5;
+}
+
+message FunctionExpr {
+    string name = 1;
+    repeated Expression args = 2;
+}
+
+message AggExpr {
+    AggFunction function = 1;
+    Expression expr = 2;
+}
+
+enum AggFunction {
+    AGG_FUNCTION_UNSPECIFIED = 0;
+    SUM = 1;
+    MIN = 2;
+    MAX = 3;
+    MEAN = 4;
+    MEDIAN = 5;
+    STD = 6;
+    VAR = 7;
+    COUNT = 8;
+    FIRST = 9;
+    LAST = 10;
+}
+
+message WindowExpr {
+    Expression expr = 1;
+    int64 window_size = 2;
+    optional int64 min_periods = 3;
+}
+
+message CaseExpr {
+    repeated WhenThen when_then = 1;
+    optional Expression otherwise = 2;
+}
+
+message WhenThen {
+    Expression when = 1;
+    Expression then = 2;
+}
+
+// ===== File I/O Messages =====
+
+message ReadParquetRequest {
+    string path = 1;
+    repeated string columns = 2;  // Projection pushdown (empty = all columns)
+    optional string predicate = 3;  // Filter expression (SQL-like or Expression proto)
+    optional int64 n_rows = 4;  // Limit rows to read
+    optional int64 row_index_offset = 5;
+    bool parallel = 6;  // Use parallel reading
+}
+
+message ReadCsvRequest {
+    string path = 1;
+    bool has_header = 2;
+    optional string separator = 3;
+    optional string quote_char = 4;
+    optional int64 skip_rows = 5;
+    optional int64 n_rows = 6;
+    repeated string columns = 7;  // Select specific columns
+    optional string schema_json = 8;  // Explicit schema as JSON
+}
+
+message WriteParquetRequest {
+    string handle = 1;
+    string path = 2;
+    optional string compression = 3;  // "snappy", "gzip", "zstd", "lz4"
+    optional int64 row_group_size = 4;
+    bool append = 5;
+}
+
+message WriteCsvRequest {
+    string handle = 1;
+    string path = 2;
+    bool include_header = 3;
+    optional string separator = 4;
+}
+
+message WriteResponse {
+    bool success = 1;
+    optional string error = 2;
+    optional int64 rows_written = 3;
+}
+
+// ===== Network Source Messages =====
+
+message WebSocketSourceRequest {
+    string url = 1;
+    map<string, string> headers = 2;
+    string schema_json = 3;  // Arrow schema as JSON
+    ReconnectPolicy reconnect_policy = 4;
+    optional int64 buffer_size = 5;
+    optional MessageFormat format = 6;
+}
+
+message ReconnectPolicy {
+    uint32 max_retries = 1;
+    uint32 initial_delay_ms = 2;
+    uint32 max_delay_ms = 3;
+    float backoff_multiplier = 4;
+}
+
+enum MessageFormat {
+    MESSAGE_FORMAT_UNSPECIFIED = 0;
+    JSON = 1;
+    ARROW_IPC = 2;
+    MSGPACK = 3;
+    PROTOBUF = 4;
+}
+
+message RestApiRequest {
+    string url = 1;
+    map<string, string> headers = 2;
+    string method = 3;  // GET, POST, PUT
+    optional string body = 4;
+    PaginationConfig pagination = 5;
+    string schema_json = 6;
+    optional RateLimitConfig rate_limit = 7;
+    MessageFormat format = 8;
+}
+
+message PaginationConfig {
+    oneof strategy {
+        OffsetPagination offset = 1;
+        CursorPagination cursor = 2;
+        LinkHeaderPagination link_header = 3;
+        PageNumberPagination page_number = 4;
+    }
+}
+
+message OffsetPagination {
+    uint32 limit = 1;
+    string offset_field = 2;  // URL param name for offset
+}
+
+message CursorPagination {
+    string cursor_field = 1;  // Response field containing cursor
+    string cursor_param = 2;  // URL param name for cursor
+}
+
+message LinkHeaderPagination {
+    string rel = 1;  // "next", "prev"
+}
+
+message PageNumberPagination {
+    uint32 page_size = 1;
+    string page_param = 2;  // URL param name for page number
+}
+
+message RateLimitConfig {
+    uint32 requests_per_second = 1;
+    uint32 burst_size = 2;
+}
+
+message GrpcStreamRequest {
+    string endpoint = 1;  // host:port
+    string service = 2;
+    string method = 3;
+    bytes request_proto = 4;  // Serialized request message
+    map<string, string> metadata = 5;
+    optional TlsConfig tls = 6;
+}
+
+message TlsConfig {
+    bool enabled = 1;
+    optional string ca_cert = 2;
+    optional string client_cert = 3;
+    optional string client_key = 4;
+}
+
+message MessageQueueRequest {
+    MessageQueueType type = 1;
+    string connection_string = 2;
+    string topic = 3;
+    optional string consumer_group = 4;
+    string schema_json = 5;
+    MessageFormat format = 6;
+}
+
+enum MessageQueueType {
+    MESSAGE_QUEUE_TYPE_UNSPECIFIED = 0;
+    KAFKA = 1;
+    RABBITMQ = 2;
+    NATS = 3;
+    REDIS_STREAM = 4;
+}
+
+// ===== Core Operation Messages =====
+
+message FilterRequest {
+    string handle = 1;
+    Expression predicate = 2;
+}
+
+message SelectRequest {
+    string handle = 1;
+    repeated string columns = 2;
+}
+
+message WithColumnRequest {
+    string handle = 1;
+    string name = 2;
+    Expression expr = 3;
+}
+
+message WithColumnsRequest {
+    string handle = 1;
+    map<string, Expression> columns = 2;
+}
+
+message DropRequest {
+    string handle = 1;
+    repeated string columns = 2;
+}
+
+message RenameRequest {
+    string handle = 1;
+    map<string, string> mapping = 2;  // old_name -> new_name
+}
+
+message SortRequest {
+    string handle = 1;
+    repeated SortColumn columns = 2;
+}
+
+message SortColumn {
+    string name = 1;
+    bool descending = 2;
+    bool nulls_last = 3;
+}
+
+message UniqueRequest {
+    string handle = 1;
+    repeated string subset = 2;  // Columns to consider
+    bool keep_first = 3;
+}
+
+message LimitRequest {
+    string handle = 1;
+    int64 n = 2;
+}
+
+message HeadRequest {
+    string handle = 1;
+    int64 n = 2;
+}
+
+message TailRequest {
+    string handle = 1;
+    int64 n = 2;
+}
+
+message SliceRequest {
+    string handle = 1;
+    int64 offset = 2;
+    int64 length = 3;
+}
+
+message GroupByRequest {
+    string handle = 1;
+    repeated string columns = 2;
+}
+
+message AggRequest {
+    string handle = 1;  // Can be DataFrameHandle or GroupByHandle
+    repeated Aggregation aggregations = 2;
+}
+
+message Aggregation {
+    string column = 1;
+    string alias = 2;
+    AggFunction function = 3;
+}
+
+message PivotRequest {
+    string handle = 1;
+    string index = 2;
+    string columns = 3;
+    string values = 4;
+    optional AggFunction aggregate = 5;
+}
+
+message MeltRequest {
+    string handle = 1;
+    repeated string id_vars = 2;
+    repeated string value_vars = 3;
+    optional string variable_name = 4;
+    optional string value_name = 5;
+}
+
+message JoinRequest {
+    string left_handle = 1;
+    string right_handle = 2;
+    oneof join_keys {
+        JoinOn on = 3;
+        JoinLeftRight left_right = 4;
+    }
+    JoinType join_type = 5;
+    optional string suffix = 6;
+}
+
+message JoinOn {
+    repeated string columns = 1;
+}
+
+message JoinLeftRight {
+    repeated string left = 1;
+    repeated string right = 2;
+}
+
+enum JoinType {
+    JOIN_TYPE_UNSPECIFIED = 0;
+    INNER = 1;
+    LEFT = 2;
+    RIGHT = 3;
+    FULL = 4;
+    CROSS = 5;
+}
+
+message CrossRequest {
+    string left_handle = 1;
+    string right_handle = 2;
+}
+
+// ===== Time-Series Messages =====
+
+message AsTimeSeriesRequest {
+    string handle = 1;
+    string timestamp_column = 2;
+    optional string frequency = 3;  // Auto-detect if not provided
+    bool ensure_sorted = 4;
+}
+
+message ResampleRequest {
+    string handle = 1;
+    string frequency = 2;  // "1s", "5m", "1h", "1d", etc.
+    repeated Aggregation aggregations = 3;
+    optional string label = 4;  // "left", "right"
+}
+
+message RollingWindowRequest {
+    string handle = 1;
+    string window_size = 2;  // Duration string or row count
+    repeated RollingAggregation aggregations = 3;
+    optional int64 min_periods = 4;
+    bool center = 5;
+}
+
+message RollingAggregation {
+    string column = 1;
+    string alias = 2;
+    AggFunction function = 3;
+}
+
+message LagRequest {
+    string handle = 1;
+    repeated LagColumn columns = 2;
+}
+
+message LagColumn {
+    string column = 1;
+    int64 periods = 2;
+    optional string alias = 3;
+}
+
+message LeadRequest {
+    string handle = 1;
+    repeated LagColumn columns = 2;  // Reuse LagColumn (same structure)
+}
+
+message DiffRequest {
+    string handle = 1;
+    repeated string columns = 2;
+    int64 periods = 3;
+}
+
+message PctChangeRequest {
+    string handle = 1;
+    repeated string columns = 2;
+    int64 periods = 3;
+}
+
+message AsofJoinRequest {
+    string left_handle = 1;
+    string right_handle = 2;
+    string left_on = 3;
+    string right_on = 4;
+    repeated string by = 5;
+    optional string tolerance = 6;  // Duration string
+    optional string strategy = 7;  // "backward", "forward", "nearest"
+}
+
+message FillNullRequest {
+    string handle = 1;
+    oneof strategy {
+        FillValue value = 2;
+        FillMethod method = 3;
+    }
+    repeated string columns = 4;  // Empty = all columns
+}
+
+message FillValue {
+    oneof value {
+        int64 int_val = 1;
+        double float_val = 2;
+        string string_val = 3;
+    }
+}
+
+enum FillMethod {
+    FILL_METHOD_UNSPECIFIED = 0;
+    FILL_FORWARD = 1;
+    FILL_BACKWARD = 2;
+    FILL_MEAN = 3;
+    FILL_MIN = 4;
+    FILL_MAX = 5;
+    FILL_ZERO = 6;
+}
+
+message FillNanRequest {
+    string handle = 1;
+    oneof strategy {
+        double value = 2;
+        FillMethod method = 3;
+    }
+    repeated string columns = 4;
+}
+
+message InterpolateRequest {
+    string handle = 1;
+    string method = 2;  // "linear", "cubic", "polynomial"
+    repeated string columns = 3;
+}
+
+// ===== Execution Messages =====
+
+message CollectRequest {
+    string handle = 1;
+    optional int64 limit = 2;
+}
+
+message CollectStreamingRequest {
+    string handle = 1;
+    optional int64 batch_size = 2;
+}
+
+message ExplainRequest {
+    string handle = 1;
+    bool optimized = 2;
+    bool format_tree = 3;
+}
+
+message ExplainResponse {
+    string logical_plan = 1;
+    optional string physical_plan = 2;
+    repeated string optimizations = 3;
+    optional QueryStats stats = 4;
+}
+
+message QueryStats {
+    int64 estimated_rows = 1;
+    int64 estimated_bytes = 2;
+    repeated string partitions = 3;
+}
+
+// ===== Metadata Messages =====
+
+message GetSchemaRequest {
+    string handle = 1;
+}
+
+message SchemaResponse {
+    string schema_json = 1;  // Arrow schema as JSON
+    repeated ColumnInfo columns = 2;
+}
+
+message ColumnInfo {
+    string name = 1;
+    string data_type = 2;
+    bool nullable = 3;
+}
+
+message GetShapeRequest {
+    string handle = 1;
+}
+
+message ShapeResponse {
+    int64 rows = 1;
+    int64 columns = 2;
+}
+
+message GetStatsRequest {
+    string handle = 1;
+    repeated string columns = 2;  // Empty = all columns
+}
+
+message StatsResponse {
+    map<string, ColumnStats> stats = 1;
+}
+
+message ColumnStats {
+    optional double min = 1;
+    optional double max = 2;
+    optional double mean = 3;
+    optional double median = 4;
+    optional double std = 5;
+    int64 null_count = 6;
+    int64 count = 7;
+}
+
+message DescribeRequest {
+    string handle = 1;
+    repeated string columns = 2;
+}
+
+// ===== Handle Management Messages =====
+
+message CreateFromArrowRequest {
+    bytes arrow_ipc = 1;
+    optional string name = 2;
+}
+
+message CloneRequest {
+    string handle = 1;
+}
+
+message DropHandleRequest {
+    string handle = 1;
+}
+
+message DropHandleResponse {
+    bool success = 1;
+}
+
+message HeartbeatRequest {
+    repeated string handles = 1;
+}
+
+message HeartbeatResponse {
+    map<string, bool> alive = 1;  // handle -> is_alive
+}

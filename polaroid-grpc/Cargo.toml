@@ -1,0 +1,82 @@
+[package]
+name = "polaroid-grpc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Polaroid Contributors"]
+license = "MIT"
+description = "gRPC server for Polaroid DataFrame engine"
+repository = "https://github.com/polaroid-rs/polaroid"
+
+[dependencies]
+# Core Polars/Arrow
+polars = { path = "../crates/polars", features = ["lazy", "new_streaming", "parquet", "csv", "json", "temporal", "dtype-time"] }
+polars-io = { path = "../crates/polars-io", features = ["ipc"] }
+polars-utils = { path = "../crates/polars-utils" }
+arrow = "53.0"
+arrow-flight = "53.0"
+arrow-ipc = "53.0"
+parquet = "53.0"
+
+# gRPC and async
+tonic = "0.11"
+tonic-reflection = "0.11"
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
+async-stream = "0.3"
+async-trait = "0.1"
+
+# Serialization
+prost = "0.12"
+prost-types = "0.12"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Networking (optional for Phase 5)
+reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"], optional = true }
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dashmap = "5.5"
+parking_lot = "0.12"
+once_cell = "1.19"
+
+# Time and date
+chrono = { version = "0.4", features = ["serde"] }
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+log = "0.4"
+
+# Monitoring
+prometheus = "0.13"
+
+[build-dependencies]
+tonic-build = "0.11"
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3.8"
+proptest = "1.4"
+mockall = "0.12"
+
+[[bin]]
+name = "polaroid-grpc"
+path = "src/main.rs"
+
+[lib]
+name = "polaroid_grpc"
+path = "src/lib.rs"
+
+[features]
+default = []
+streaming = []
+timeseries = []
+network-sources = ["reqwest", "tokio-tungstenite"]
+full = ["streaming", "timeseries", "network-sources"]
