@@ -91,7 +91,8 @@ impl DataFrameService for PolaroidDataFrameService {
         // Apply row limit if specified
         if let Some(n_rows) = req.n_rows {
             if n_rows > 0 {
-                lf = lf.limit(n_rows as u32);
+                // Cast to IdxSize (u32 or u64 depending on bigidx feature)
+                lf = lf.limit(n_rows.try_into().unwrap_or(IdxSize::MAX));
             }
         }
         

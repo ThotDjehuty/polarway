@@ -8,6 +8,9 @@ endif
 
 RUNTIME_CARGO_TOML=py-polars/runtime/polars-runtime-32/Cargo.toml
 
+# Detect if running from rust-arblab context
+ARBLAB_DIR := $(shell if [ -f "../rust-arblab/docker-compose.yml" ]; then echo "../rust-arblab"; fi)
+
 ifeq ($(OS),Windows_NT)
 	VENV_BIN=$(VENV)/Scripts
 else
@@ -174,10 +177,136 @@ clean:  ## Clean up caches, build artifacts, and the venv
 	@rm -rf .venv/
 	@cargo clean
 
+# ============================================================================
+# Docker Commands (for use with rust-arblab or standalone)
+# ============================================================================
+
+.PHONY: rebuild
+rebuild:  ## Clean and rebuild Polaroid gRPC server
+	@echo "🔨 Rebuilding Polaroid gRPC server..."
+	cd polaroid-grpc && cargo clean && cargo build --release
+	@echo "✅ Rebuild complete!"
+
+.PHONY: docker-build
+docker-build:  ## Build Polaroid gRPC Docker image
+	@echo "🐳 Building Polaroid Docker image..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		echo "Building from rust-arblab context..."; \
+		cd $(ARBLAB_DIR) && DOCKER_BUILDKIT=1 docker compose build polaroid; \
+	elif [ -f "Dockerfile" ]; then \
+		echo "Building standalone..."; \
+		DOCKER_BUILDKIT=1 docker build -t polaroid-grpc:latest .; \
+	else \
+		echo "❌ Error: No Dockerfile found and not in rust-arblab context"; \
+		exit 1; \
+	fi
+	@echo "✅ Docker image built!"
+
+.PHONY: docker-up
+docker-up:  ## Start Polaroid gRPC server
+	@echo "🚀 Starting Polaroid gRPC server..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose up polaroid; \
+	else \
+		echo "ℹ️  Running standalone mode"; \
+		docker run -p 50052:50052 polaroid-grpc:latest; \
+	fi
+
+.PHONY: docker-up-d
+docker-up-d:  ## Start Polaroid gRPC server in background
+	@echo "🚀 Starting Polaroid gRPC server (detached)..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose up -d polaroid; \
+		echo "✅ Polaroid running at localhost:50052"; \
+	else \
+		docker run -d -p 50052:50052 --name polaroid-server polaroid-grpc:latest; \
+		echo "✅ Polaroid running at localhost:50052"; \
+	fi
+
+.PHONY: docker-down
+docker-down:  ## Stop Polaroid services
+	@echo "🛑 Stopping Polaroid services..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose stop polaroid; \
+	else \
+		docker stop polaroid-server 2>/dev/null || true; \
+		docker rm polaroid-server 2>/dev/null || true; \
+	fi
+	@echo "✅ Polaroid stopped"
+
+.PHONY: docker-logs
+docker-logs:  ## View Polaroid container logs
+	@echo "📋 Tailing Polaroid logs (Ctrl+C to exit)..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose logs -f polaroid; \
+	else \
+		docker logs -f polaroid-server; \
+	fi
+
+.PHONY: docker-restart
+docker-restart:  ## Quick restart without rebuild
+	@echo "⚡ Quick restart (no rebuild)..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose restart polaroid; \
+	else \
+		docker restart polaroid-server; \
+	fi
+	@echo "✅ Polaroid restarted!"
+
+.PHONY: docker-rebuild
+docker-rebuild: docker-down docker-build docker-up-d  ## Full rebuild and restart
+	@echo "✅ Full rebuild complete! Polaroid running at localhost:50052"
+
+.PHONY: docker-clean
+docker-clean:  ## Remove all Docker artifacts and rebuild
+	@echo "🧹 Cleaning Docker artifacts..."
+	@if [ -n "$(ARBLAB_DIR)" ]; then \
+		cd $(ARBLAB_DIR) && docker compose down polaroid --remove-orphans; \
+	else \
+		docker stop polaroid-server 2>/dev/null || true; \
+		docker rm polaroid-server 2>/dev/null || true; \
+	fi
+	docker rmi polaroid-grpc:latest 2>/dev/null || true
+	docker system prune -f
+	@echo "✅ Docker cleanup complete!"
+
+.PHONY: test
+test:  ## Run Polaroid gRPC tests
+	cd polaroid-grpc && cargo test --all-features
+
 .PHONY: help
 help:  ## Display this help screen
-	@echo -e "\033[1mAvailable commands:\033[0m"
-	@grep -E '^[a-z.A-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}' | sort
+	@echo -e "\033[1m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	@echo -e "\033[1m  Polaroid - DataFrame Engine Commands\033[0m"
+	@echo -e "\033[1m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 	@echo
-	@echo The build commands support LTS_CPU=1 for building for older CPUs, and ARGS which is passed through to maturin.
-	@echo 'For example to build without default features use: make build ARGS="--no-default-features".'
+	@echo "🚀 Quick Start:"
+	@echo "  make requirements       Set up Python virtual environment"
+	@echo "  make build-release      Build Polaroid (optimized)"
+	@echo "  make docker-build       Build Polaroid Docker image"
+	@echo "  make docker-up          Start Polaroid gRPC server"
+	@echo
+	@echo "🔨 Build Commands:"
+	@grep -E '^(build|build-release|build-debug-release):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@echo "🐳 Docker Commands:"
+	@echo "  make docker-build       Build Polaroid gRPC Docker image"
+	@echo "  make docker-up          Start Polaroid gRPC server (port 50052)"
+	@echo "  make docker-up-d        Start in background (detached)"
+	@echo "  make docker-down        Stop Polaroid services"
+	@echo "  make docker-logs        View container logs"
+	@echo "  make docker-restart     Quick restart (no rebuild)"
+	@echo "  make docker-rebuild     Full rebuild and restart"
+	@echo "  make docker-clean       Remove all Docker artifacts"
+	@echo
+	@echo "🧪 Rust Commands:"
+	@grep -E '^(check|clippy|test|fmt):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@echo "🧹 Maintenance:"
+	@grep -E '^(clean|rebuild):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+	@echo
+	@echo "💡 Tips:"
+	@echo "  - Use LTS_CPU=1 for older CPU compatibility"
+	@echo "  - Use ARGS=\"--no-default-features\" for custom builds"
+	@echo "  - Docker context optimized (99.87% smaller with .dockerignore)"
+	@echo
