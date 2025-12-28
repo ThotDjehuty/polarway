@@ -11,7 +11,7 @@ import grpc.aio
 import pyarrow as pa
 import asyncio
 from io import BytesIO
-from typing import List, Optional, Callable, TypeVar, Generic, AsyncIterator
+from typing import List, Optional, Callable, TypeVar, Generic, AsyncIterator, Tuple
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
 import time

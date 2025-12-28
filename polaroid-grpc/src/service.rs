@@ -91,7 +91,7 @@ impl DataFrameService for PolaroidDataFrameService {
         // Apply row limit if specified
         if let Some(n_rows) = req.n_rows {
             if n_rows > 0 {
-                lf = lf.limit(n_rows as u64);
+                lf = lf.limit(n_rows as u32);
             }
         }
         
