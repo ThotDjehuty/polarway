@@ -17,8 +17,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 WORKDIR /build
 
-# Copy all source code (simpler, avoid partial copy issues)
-COPY . .
+# Copy workspace Cargo.toml and exclude problematic members
+COPY Cargo.toml /build/
+RUN sed -i '/docs\/source\/src\/rust/d' /build/Cargo.toml && \
+    sed -i '/py-polars\/runtime/d' /build/Cargo.toml && \
+    sed -i '/pyo3-polars/d' /build/Cargo.toml
+
+# Copy necessary crates and polaroid-grpc
+COPY crates/ /build/crates/
+COPY polaroid-grpc/ /build/polaroid-grpc/
+COPY proto/ /build/proto/
 
 # Build in release mode with optimizations
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
