@@ -2,7 +2,7 @@ use tonic::{Request, Response, Status};
 use tokio_stream::wrappers::ReceiverStream;
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, info, error};
+use tracing::{debug, info};
 use polars::prelude::*;
 use polars_io::ipc::IpcWriter;
 use polars_utils::plpath::PlPath;
@@ -91,7 +91,7 @@ impl DataFrameService for PolaroidDataFrameService {
         // Apply row limit if specified
         if let Some(n_rows) = req.n_rows {
             if n_rows > 0 {
-                lf = lf.limit(n_rows as u32);
+                lf = lf.limit(n_rows as u64);
             }
         }
         

@@ -1,0 +1,16 @@
+# Fast Polaroid Docker - uses pre-built binary
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 ca-certificates netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy pre-built binary from host
+COPY ./target/release/polaroid-grpc /app/polaroid-grpc
+
+ENV POLAROID_BIND_ADDRESS=0.0.0.0:50052
+EXPOSE 50052
+
+CMD ["/app/polaroid-grpc"]
