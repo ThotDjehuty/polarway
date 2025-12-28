@@ -55,14 +55,19 @@ class Result(Generic[T, E]):
     
     def unwrap(self) -> T:
         if self.is_ok():
+            assert self._value is not None
             return self._value
         raise ValueError(f"Called unwrap on Err: {self._error}")
     
     def unwrap_or(self, default: T) -> T:
-        return self._value if self.is_ok() else default
+        if self.is_ok():
+            assert self._value is not None
+            return self._value
+        return default
     
     def expect(self, msg: str) -> T:
         if self.is_ok():
+            assert self._value is not None
             return self._value
         raise ValueError(f"{msg}: {self._error}")
     
@@ -70,18 +75,27 @@ class Result(Generic[T, E]):
         """Functor map - transforms Ok value, passes through Err"""
         if self.is_ok():
             try:
+                assert self._value is not None
                 return Result.Ok(f(self._value))
             except Exception as e:
                 return Result.Err(e)
+        assert self._error is not None
         return Result.Err(self._error)
     
     def and_then(self, f: Callable[[T], 'Result[U, E]']) -> 'Result[U, E]':
         """Monadic bind (flatMap) - chains Results"""
-        return f(self._value) if self.is_ok() else Result.Err(self._error)
+        if self.is_ok():
+            assert self._value is not None
+            return f(self._value)
+        assert self._error is not None
+        return Result.Err(self._error)
     
     def or_else(self, f: Callable[[E], 'Result[T, E]']) -> 'Result[T, E]':
         """Error recovery - transforms Err, passes through Ok"""
-        return self if self.is_ok() else f(self._error)
+        if self.is_ok():
+            return self
+        assert self._error is not None
+        return f(self._error)
 
 
 @dataclass
@@ -113,17 +127,27 @@ class Option(Generic[T]):
     
     def unwrap(self) -> T:
         if self.is_some():
+            assert self._value is not None
             return self._value
         raise ValueError("Called unwrap on Nothing")
     
     def unwrap_or(self, default: T) -> T:
-        return self._value if self.is_some() else default
+        if self.is_some():
+            assert self._value is not None
+            return self._value
+        return default
     
     def map(self, f: Callable[[T], U]) -> 'Option[U]':
-        return Option.Some(f(self._value)) if self.is_some() else Option.Nothing()
+        if self.is_some():
+            assert self._value is not None
+            return Option.Some(f(self._value))
+        return Option.Nothing()
     
     def and_then(self, f: Callable[[T], 'Option[U]']) -> 'Option[U]':
-        return f(self._value) if self.is_some() else Option.Nothing()
+        if self.is_some():
+            assert self._value is not None
+            return f(self._value)
+        return Option.Nothing()
 
 
 class AsyncPolaroidClient:
@@ -142,7 +166,7 @@ class AsyncPolaroidClient:
     def __init__(self, address: str = "localhost:50051", max_concurrent: int = 100):
         self.address = address
         self.channel: Optional[grpc.aio.Channel] = None
-        self.stub = None
+        self.stub: Optional[polaroid_pb2_grpc.DataFrameServiceStub] = None
         self._active_handles: set = set()
         self._heartbeat_tasks: dict = {}
         self._shutdown_event = asyncio.Event()
@@ -202,8 +226,10 @@ class AsyncPolaroidClient:
     async def _drop_handle(self, handle: str):
         """Internal: drop a handle"""
         try:
+            if self.stub is None:
+                return
             await self.stub.DropHandle(
-                polaroid_pb2.DropHandleRequest(handle=handle)
+                polaroid_pb2.DropHandleRequest(handle=handle)  # type: ignore[attr-defined]
             )
             self._active_handles.discard(handle)
         except Exception:
@@ -222,8 +248,10 @@ class AsyncPolaroidClient:
         """
         try:
             async with self._semaphore:  # Limit concurrency
+                if self.stub is None:
+                    return Result.Err("Client not connected")
                 response = await self.stub.ReadParquet(
-                    polaroid_pb2.ReadParquetRequest(
+                    polaroid_pb2.ReadParquetRequest(  # type: ignore[attr-defined]
                         path=path,
                         columns=columns or []
                     )
@@ -261,8 +289,10 @@ class AsyncPolaroidClient:
         """
         try:
             async with self._semaphore:
+                if self.stub is None:
+                    return Result.Err("Client not connected")
                 stream = self.stub.Collect(
-                    polaroid_pb2.CollectRequest(handle=handle)
+                    polaroid_pb2.CollectRequest(handle=handle)  # type: ignore[attr-defined]
                 )
                 
                 # Collect all batches
@@ -301,8 +331,10 @@ class AsyncPolaroidClient:
                 result = process_batch(batch)
         """
         try:
+            if self.stub is None:
+                raise RuntimeError("Client not connected")
             stream = self.stub.Collect(
-                polaroid_pb2.CollectRequest(handle=handle)
+                polaroid_pb2.CollectRequest(handle=handle)  # type: ignore[attr-defined]
             )
             
             async for response in stream:
@@ -323,8 +355,10 @@ class AsyncPolaroidClient:
                 await asyncio.sleep(interval)
                 
                 try:
+                    if self.stub is None:
+                        break
                     await self.stub.Heartbeat(
-                        polaroid_pb2.HeartbeatRequest(handle=handle)
+                        polaroid_pb2.HeartbeatRequest(handle=handle)  # type: ignore[attr-defined]
                     )
                 except grpc.aio.AioRpcError:
                     # Handle expired or dropped
@@ -342,8 +376,10 @@ class AsyncPolaroidClient:
     async def select(self, handle: str, columns: List[str]) -> Result[str, str]:
         """Async select columns - returns new handle"""
         try:
+            if self.stub is None:
+                return Result.Err("Client not connected")
             response = await self.stub.Select(
-                polaroid_pb2.SelectRequest(
+                polaroid_pb2.SelectRequest(  # type: ignore[attr-defined]
                     handle=handle,
                     columns=columns
                 )
@@ -356,8 +392,10 @@ class AsyncPolaroidClient:
     async def get_shape(self, handle: str) -> Result[Tuple[int, int], str]:
         """Async get DataFrame shape"""
         try:
+            if self.stub is None:
+                return Result.Err("Client not connected")
             response = await self.stub.GetShape(
-                polaroid_pb2.GetShapeRequest(handle=handle)
+                polaroid_pb2.GetShapeRequest(handle=handle)  # type: ignore[attr-defined]
             )
             return Result.Ok((response.rows, response.columns))
         except grpc.aio.AioRpcError as e:
@@ -376,19 +414,20 @@ class AsyncDataFrame:
     def __init__(self, client: AsyncPolaroidClient, handle: str):
         self.client = client
         self.handle = handle
+        self._pending_select: Optional[List[str]] = None
     
     def select(self, columns: List[str]) -> 'AsyncDataFrame':
         """Lazy select - returns new AsyncDataFrame"""
         # Note: This is lazy - doesn't execute until collect()
         new_df = AsyncDataFrame(self.client, self.handle)
-        new_df._pending_select = columns
+        new_df._pending_select = columns  # type: ignore[misc]
         return new_df
     
     async def collect(self) -> Result[pa.Table, str]:
         """Execute lazy operations and collect result"""
         # Apply pending operations
         handle = self.handle
-        if hasattr(self, '_pending_select'):
+        if self._pending_select is not None:
             result = await self.client.select(handle, self._pending_select)
             if result.is_err():
                 return result
