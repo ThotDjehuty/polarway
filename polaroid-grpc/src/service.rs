@@ -416,20 +416,128 @@ impl DataFrameService for PolaroidDataFrameService {
         Err(Status::unimplemented("rolling_window will be implemented in Phase 4"))
     }
     
-    async fn lag(&self, _request: Request<LagRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("lag will be implemented in Phase 4"))
+    async fn lag(&self, request: Request<LagRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        info!("lag request: handle={}, columns={:?}", req.handle, req.columns);
+        
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::not_found(format!("Handle {} not found: {}", req.handle, e)))?;
+        
+        let mut lf = (*df).clone().lazy();
+        
+        for lag_col in req.columns.iter() {
+            let col_name = &lag_col.column;
+            let periods = lag_col.periods;
+            let alias_str = lag_col.alias.as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("{}_lag_{}", col_name, periods));
+            
+            lf = lf.with_column(
+                col(col_name).shift(lit(periods)).alias(&alias_str)
+            );
+        }
+        
+        let result_df = lf.collect()
+            .map_err(|e| PolaroidError::Polars(e))?;
+        
+        let handle = self.handle_manager.create_handle(result_df);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn lead(&self, _request: Request<LeadRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("lead will be implemented in Phase 4"))
+    async fn lead(&self, request: Request<LeadRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        info!("lead request: handle={}, columns={:?}", req.handle, req.columns);
+        
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::not_found(format!("Handle {} not found: {}", req.handle, e)))?;
+        
+        let mut lf = (*df).clone().lazy();
+        
+        for lead_col in req.columns.iter() {
+            let col_name = &lead_col.column;
+            let periods = lead_col.periods;
+            let alias_str = lead_col.alias.as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("{}_lead_{}", col_name, periods));
+            
+            // Lead is negative shift
+            lf = lf.with_column(
+                col(col_name).shift(lit(-periods)).alias(&alias_str)
+            );
+        }
+        
+        let result_df = lf.collect()
+            .map_err(|e| PolaroidError::Polars(e))?;
+        
+        let handle = self.handle_manager.create_handle(result_df);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn diff(&self, _request: Request<DiffRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("diff will be implemented in Phase 4"))
+    async fn diff(&self, request: Request<DiffRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        info!("diff request: handle={}, columns={:?}, periods={}", req.handle, req.columns, req.periods);
+        
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::not_found(format!("Handle {} not found: {}", req.handle, e)))?;
+        
+        let mut lf = (*df).clone().lazy();
+        
+        for col_name in req.columns.iter() {
+            let alias = format!("{}_diff", col_name);
+            
+            // Diff: current - shifted
+            lf = lf.with_column(
+                (col(col_name) - col(col_name).shift(lit(req.periods))).alias(&alias)
+            );
+        }
+        
+        let result_df = lf.collect()
+            .map_err(|e| PolaroidError::Polars(e))?;
+        
+        let handle = self.handle_manager.create_handle(result_df);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn pct_change(&self, _request: Request<PctChangeRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("pct_change will be implemented in Phase 4"))
+    async fn pct_change(&self, request: Request<PctChangeRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        info!("pct_change request: handle={}, columns={:?}, periods={}", req.handle, req.columns, req.periods);
+        
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::not_found(format!("Handle {} not found: {}", req.handle, e)))?;
+        
+        let mut lf = (*df).clone().lazy();
+        
+        for col_name in req.columns.iter() {
+            let alias = format!("{}_pct_change", col_name);
+            
+            // Pct change: (current - shifted) / shifted
+            let shifted = col(col_name).shift(lit(req.periods));
+            lf = lf.with_column(
+                ((col(col_name) - shifted.clone()) / shifted).alias(&alias)
+            );
+        }
+        
+        let result_df = lf.collect()
+            .map_err(|e| PolaroidError::Polars(e))?;
+        
+        let handle = self.handle_manager.create_handle(result_df);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
     async fn asof_join(&self, _request: Request<AsofJoinRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
