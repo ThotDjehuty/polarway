@@ -4,6 +4,8 @@ members = [
   "crates/*",
   "docs/source/src/rust",
   "polaroid-grpc",
+  "polaroid-sources",
+  "polaroid-distributed",
   "py-polars/runtime/polars-runtime-32",
   "py-polars/runtime/polars-runtime-64",
   "py-polars/runtime/polars-runtime-compat",
@@ -16,6 +18,8 @@ members = [
 default-members = [
   "crates/*",
   "polaroid-grpc",
+  "polaroid-sources",
+  "polaroid-distributed",
 ]
 
 [workspace.package]

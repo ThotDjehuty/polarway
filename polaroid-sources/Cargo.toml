@@ -1,0 +1,51 @@
+[package]
+name = "polaroid-sources"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+
+[dependencies]
+# Arrow and data processing
+arrow = { version = "53.0", features = ["ipc", "json"] }
+arrow-schema = "53.0"
+
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+tokio-stream = "0.1"
+tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
+futures = "0.3"
+async-stream = "0.3"
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "stream"] }
+hyper = "1.0"
+
+# gRPC
+tonic = "0.12"
+prost = "0.13"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Rate limiting and retry
+governor = "0.6"
+backoff = { version = "0.4", features = ["tokio"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+url = "2.5"
+bytes = "1.7"
+urlencoding = "2.1"
+
+[dev-dependencies]
+mockito = "1.5"
+wiremock = "0.6"
+tokio-test = "0.4"
