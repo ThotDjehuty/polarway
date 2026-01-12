@@ -1,27 +1,36 @@
-version: '3.8'
-
 services:
   polaroid-grpc:
     build:
       context: .
-      dockerfile: Dockerfile.polaroid
-    container_name: polaroid-grpc
+      dockerfile: Dockerfile.optimized
+      cache_from:
+        - polaroid-grpc:latest
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: polaroid-grpc:latest
+    container_name: polaroid-server-public
     ports:
-      - "50051:50051"
+      - "50053:50052"
     environment:
       - RUST_LOG=info
       - RUST_BACKTRACE=1
+      - POLAROID_BIND_ADDRESS=0.0.0.0:50052
     volumes:
-      # Mount test data directory
-      - /tmp:/tmp:ro
+      # Mount test data directory (read-write for notebooks)
+      - /tmp:/tmp
+      # Mount workspace data for shared access
+      - ${PWD}/data:/app/data
+      # Mount notebooks directory for easy testing
+      - ${PWD}/notebooks:/app/notebooks:ro
     networks:
       - polaroid-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 50051 || exit 1"]
+      test: ["CMD", "sh", "-c", "nc -z localhost 50052 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 10s
 
 networks:
   polaroid-net:

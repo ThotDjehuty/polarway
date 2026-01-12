@@ -1,0 +1,90 @@
+# syntax=docker/dockerfile:1.4
+# Optimized multi-stage build with smart dependency caching
+
+# ============================================================================
+# Stage 1: Dependency Builder - Build only dependencies (CACHED)
+# ============================================================================
+FROM rust:1.83-slim-bookworm AS dependencies
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy only Cargo files to build dependencies
+COPY Cargo.toml Cargo.lock ./
+COPY crates/polars-error/Cargo.toml crates/polars-error/Cargo.toml
+COPY crates/polars-utils/Cargo.toml crates/polars-utils/Cargo.toml
+COPY crates/polars-arrow/Cargo.toml crates/polars-arrow/Cargo.toml
+COPY polaroid-grpc/Cargo.toml polaroid-grpc/Cargo.toml
+
+# Create dummy source files to satisfy cargo
+RUN mkdir -p crates/polars-error/src crates/polars-utils/src crates/polars-arrow/src polaroid-grpc/src && \
+    echo "fn main() {}" > polaroid-grpc/src/main.rs && \
+    echo "pub fn dummy() {}" > crates/polars-error/src/lib.rs && \
+    echo "pub fn dummy() {}" > crates/polars-utils/src/lib.rs && \
+    echo "pub fn dummy() {}" > crates/polars-arrow/src/lib.rs
+
+# Build dependencies (this layer will be cached!)
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --release --bin polaroid-grpc && \
+    rm -rf target/release/.fingerprint/polaroid-grpc-* target/release/polaroid-grpc*
+
+# ============================================================================
+# Stage 2: Builder - Build application with cached dependencies
+# ============================================================================
+FROM rust:1.83-slim-bookworm AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    CARGO_INCREMENTAL=0 \
+    RUSTFLAGS="-C codegen-units=16 -C opt-level=3"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+# Copy cached dependencies
+COPY --from=dependencies /build/target /build/target
+COPY --from=dependencies /usr/local/cargo /usr/local/cargo
+
+# Copy actual source code
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+COPY polaroid-grpc/ polaroid-grpc/
+COPY proto/ proto/
+
+# Build only the application (dependencies already built!)
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --release --bin polaroid-grpc && \
+    strip target/release/polaroid-grpc
+
+# ============================================================================
+# Stage 3: Runtime - Minimal runtime image
+# ============================================================================
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 ca-certificates netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only the binary
+COPY --from=builder /build/target/release/polaroid-grpc /app/polaroid-grpc
+
+# Create data directory
+RUN mkdir -p /app/data
+
+ENV POLAROID_BIND_ADDRESS=0.0.0.0:50052
+EXPOSE 50052
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD nc -z localhost 50052 || exit 1
+
+CMD ["/app/polaroid-grpc"]

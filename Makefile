@@ -178,97 +178,83 @@ clean:  ## Clean up caches, build artifacts, and the venv
 	@cargo clean
 
 # ============================================================================
-# Docker Commands (for use with rust-arblab or standalone)
+# Docker Commands (optimized builds with caching)
 # ============================================================================
 
-.PHONY: rebuild
-rebuild:  ## Clean and rebuild Polaroid gRPC server
-	@echo "🔨 Rebuilding Polaroid gRPC server..."
-	cd polaroid-grpc && cargo clean && cargo build --release
-	@echo "✅ Rebuild complete!"
+.PHONY: docker-build-fast
+docker-build-fast:  ## Build Docker image with cargo-chef caching (FAST)
+	@echo "🚀 Building Polaroid Docker image (optimized with cargo-chef)..."
+	@DOCKER_BUILDKIT=1 docker compose -f docker-compose.polaroid.yml build \
+		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--progress=plain
+	@echo "✅ Docker image built with dependency caching!"
 
 .PHONY: docker-build
-docker-build:  ## Build Polaroid gRPC Docker image
-	@echo "🐳 Building Polaroid Docker image..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		echo "Building from rust-arblab context..."; \
-		cd $(ARBLAB_DIR) && DOCKER_BUILDKIT=1 docker compose build polaroid; \
-	elif [ -f "Dockerfile" ]; then \
-		echo "Building standalone..."; \
-		DOCKER_BUILDKIT=1 docker build -t polaroid-grpc:latest .; \
-	else \
-		echo "❌ Error: No Dockerfile found and not in rust-arblab context"; \
-		exit 1; \
-	fi
-	@echo "✅ Docker image built!"
+docker-build: docker-build-fast  ## Alias for docker-build-fast
+
+.PHONY: docker-build-clean
+docker-build-clean:  ## Build Docker image from scratch (no cache)
+	@echo "🧹 Building Polaroid Docker image (clean build, no cache)..."
+	@DOCKER_BUILDKIT=1 docker compose -f docker-compose.polaroid.yml build --no-cache --progress=plain
+	@echo "✅ Clean Docker build complete!"
 
 .PHONY: docker-up
-docker-up:  ## Start Polaroid gRPC server
+docker-up:  ## Start Polaroid gRPC server (with volume mounts)
 	@echo "🚀 Starting Polaroid gRPC server..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose up polaroid; \
-	else \
-		echo "ℹ️  Running standalone mode"; \
-		docker run -p 50052:50052 polaroid-grpc:latest; \
-	fi
-
+	@docker compose -f docker-compose.polaroid.yml up
+	
 .PHONY: docker-up-d
 docker-up-d:  ## Start Polaroid gRPC server in background
 	@echo "🚀 Starting Polaroid gRPC server (detached)..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose up -d polaroid; \
-		echo "✅ Polaroid running at localhost:50052"; \
-	else \
-		docker run -d -p 50052:50052 --name polaroid-server polaroid-grpc:latest; \
-		echo "✅ Polaroid running at localhost:50052"; \
-	fi
+	@docker compose -f docker-compose.polaroid.yml up -d
+	@echo "✅ Polaroid running at localhost:50053"
+	@echo "📂 Volume mounts:"
+	@echo "   - /tmp -> /tmp (test data)"
+	@echo "   - ./data -> /app/data"
+	@echo "   - ./notebooks -> /app/notebooks (read-only)"
 
 .PHONY: docker-down
 docker-down:  ## Stop Polaroid services
 	@echo "🛑 Stopping Polaroid services..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose stop polaroid; \
-	else \
-		docker stop polaroid-server 2>/dev/null || true; \
-		docker rm polaroid-server 2>/dev/null || true; \
-	fi
+	@docker compose -f docker-compose.polaroid.yml down
 	@echo "✅ Polaroid stopped"
 
 .PHONY: docker-logs
 docker-logs:  ## View Polaroid container logs
 	@echo "📋 Tailing Polaroid logs (Ctrl+C to exit)..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose logs -f polaroid; \
-	else \
-		docker logs -f polaroid-server; \
-	fi
+	@docker compose -f docker-compose.polaroid.yml logs -f
 
 .PHONY: docker-restart
 docker-restart:  ## Quick restart without rebuild
 	@echo "⚡ Quick restart (no rebuild)..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose restart polaroid; \
-	else \
-		docker restart polaroid-server; \
-	fi
+	@docker compose -f docker-compose.polaroid.yml restart
 	@echo "✅ Polaroid restarted!"
 
 .PHONY: docker-rebuild
-docker-rebuild: docker-down docker-build docker-up-d  ## Full rebuild and restart
-	@echo "✅ Full rebuild complete! Polaroid running at localhost:50052"
+docker-rebuild: docker-down docker-build-fast docker-up-d  ## Full rebuild and restart (FAST)
+	@echo "✅ Full rebuild complete! Polaroid running at localhost:50053"
 
 .PHONY: docker-clean
-docker-clean:  ## Remove all Docker artifacts and rebuild
+docker-clean:  ## Remove all Docker artifacts
 	@echo "🧹 Cleaning Docker artifacts..."
-	@if [ -n "$(ARBLAB_DIR)" ]; then \
-		cd $(ARBLAB_DIR) && docker compose down polaroid --remove-orphans; \
-	else \
-		docker stop polaroid-server 2>/dev/null || true; \
-		docker rm polaroid-server 2>/dev/null || true; \
-	fi
-	docker rmi polaroid-grpc:latest 2>/dev/null || true
-	docker system prune -f
+	@docker compose -f docker-compose.polaroid.yml down --remove-orphans --volumes
+	@docker rmi polaroid-grpc:latest 2>/dev/null || true
+	@docker builder prune -f
 	@echo "✅ Docker cleanup complete!"
+
+.PHONY: docker-shell
+docker-shell:  ## Open shell in running Polaroid container
+	@docker compose -f docker-compose.polaroid.yml exec polaroid-grpc /bin/bash || echo "Container not running. Start with: make docker-up-d"
+
+.PHONY: docker-stats
+docker-stats:  ## Show Docker container resource usage
+	@docker stats polaroid-server-public --no-stream
+
+.PHONY: rebuild
+rebuild:  ## Clean and rebuild Polaroid gRPC server locally
+	@echo "🔨 Rebuilding Polaroid gRPC server..."
+	cd polaroid-grpc && cargo clean && cargo build --release
+	@echo "✅ Rebuild complete!"
 
 .PHONY: test
 test:  ## Run Polaroid gRPC tests
@@ -281,23 +267,26 @@ help:  ## Display this help screen
 	@echo -e "\033[1m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 	@echo
 	@echo "🚀 Quick Start:"
-	@echo "  make requirements       Set up Python virtual environment"
-	@echo "  make build-release      Build Polaroid (optimized)"
-	@echo "  make docker-build       Build Polaroid Docker image"
-	@echo "  make docker-up          Start Polaroid gRPC server"
+	@echo "  make requirements           Set up Python virtual environment"
+	@echo "  make build-release          Build Polaroid (optimized)"
+	@echo "  make docker-build-fast      Build Docker image (with caching - FAST!)"
+	@echo "  make docker-up-d            Start Polaroid gRPC server"
 	@echo
 	@echo "🔨 Build Commands:"
 	@grep -E '^(build|build-release|build-debug-release):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "🐳 Docker Commands:"
-	@echo "  make docker-build       Build Polaroid gRPC Docker image"
-	@echo "  make docker-up          Start Polaroid gRPC server (port 50052)"
-	@echo "  make docker-up-d        Start in background (detached)"
-	@echo "  make docker-down        Stop Polaroid services"
-	@echo "  make docker-logs        View container logs"
-	@echo "  make docker-restart     Quick restart (no rebuild)"
-	@echo "  make docker-rebuild     Full rebuild and restart"
-	@echo "  make docker-clean       Remove all Docker artifacts"
+	@echo "🐳 Docker Commands (Optimized!):"
+	@echo "  make docker-build-fast      Build with cargo-chef caching (2nd build is ~90% faster!)"
+	@echo "  make docker-build-clean     Clean build without cache"
+	@echo "  make docker-up              Start gRPC server (foreground)"
+	@echo "  make docker-up-d            Start in background (port 50053)"
+	@echo "  make docker-down            Stop Polaroid services"
+	@echo "  make docker-logs            View container logs (follow)"
+	@echo "  make docker-restart         Quick restart (no rebuild)"
+	@echo "  make docker-rebuild         Full rebuild and restart (FAST)"
+	@echo "  make docker-clean           Remove all Docker artifacts"
+	@echo "  make docker-shell           Open bash shell in container"
+	@echo "  make docker-stats           Show resource usage"
 	@echo
 	@echo "🧪 Rust Commands:"
 	@grep -E '^(check|clippy|test|fmt):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
@@ -305,8 +294,10 @@ help:  ## Display this help screen
 	@echo "🧹 Maintenance:"
 	@grep -E '^(clean|rebuild):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "💡 Tips:"
-	@echo "  - Use LTS_CPU=1 for older CPU compatibility"
-	@echo "  - Use ARGS=\"--no-default-features\" for custom builds"
-	@echo "  - Docker context optimized (99.87% smaller with .dockerignore)"
+	@echo "💡 Performance Tips:"
+	@echo "  - First Docker build: ~3-5 minutes (compiles all dependencies)"
+	@echo "  - Subsequent builds: ~30-60 seconds (only app code, deps cached!)"
+	@echo "  - Use 'docker-build-fast' instead of 'docker-build'"
+	@echo "  - Volume mounts: /tmp, ./data, ./notebooks (for Jupyter access)"
+	@echo "  - Docker context: 99.87% smaller with .dockerignore"
 	@echo

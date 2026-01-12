@@ -8,10 +8,10 @@ description = "gRPC server for Polaroid DataFrame engine"
 repository = "https://github.com/polaroid-rs/polaroid"
 
 [dependencies]
-# Core Polars/Arrow
-polars = { path = "../crates/polars", features = ["lazy", "new_streaming", "parquet", "csv", "json", "temporal", "dtype-time"] }
-polars-io = { path = "../crates/polars-io", features = ["ipc", "csv"] }
-polars-lazy = { path = "../crates/polars-lazy" }
+# Core Polars/Arrow (disable PyO3 to avoid dylib dependency)
+polars = { path = "../crates/polars", default-features = false, features = ["lazy", "new_streaming", "parquet", "csv", "json", "temporal", "dtype-time"] }
+polars-io = { path = "../crates/polars-io", default-features = false, features = ["ipc", "csv"] }
+polars-lazy = { path = "../crates/polars-lazy", default-features = false }
 polars-utils = { path = "../crates/polars-utils" }
 arrow = "53.0"
 arrow-flight = "53.0"
