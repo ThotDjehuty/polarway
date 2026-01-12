@@ -5,6 +5,8 @@ use std::time::Duration;
 use tracing::{debug, info};
 use polars::prelude::*;
 use polars_io::ipc::IpcWriter;
+use polars_io::csv::{CsvWriter, CsvReader};
+use polars_lazy::frame::LazyCsvReader;
 use polars_utils::plpath::PlPath;
 use std::io::Cursor;
 
@@ -14,6 +16,7 @@ use crate::proto::{
 };
 use crate::handles::HandleManager;
 use crate::error::{PolaroidError, Result};
+use crate::optimizations::{FastArrowSerializer, ParallelFilter, FastGroupBy};
 
 pub struct PolaroidDataFrameService {
     handle_manager: Arc<HandleManager>,
@@ -36,17 +39,19 @@ impl PolaroidDataFrameService {
         Self { handle_manager }
     }
     
-    /// Convert Polars DataFrame to Arrow IPC bytes
+    /// Convert Polars DataFrame to Arrow IPC bytes (optimized)
     fn dataframe_to_arrow_ipc(df: &DataFrame) -> Result<Vec<u8>> {
-        let mut buffer = Cursor::new(Vec::new());
-        let mut df_clone = df.clone();  // Clone needed for mutable reference
-        
-        // Use Polars' IPC writer
-        IpcWriter::new(&mut buffer)
-            .finish(&mut df_clone)
-            .map_err(|e| PolaroidError::Polars(e))?;
-        
-        Ok(buffer.into_inner())
+        // Use zero-copy serialization
+        FastArrowSerializer::to_ipc_zero_copy(df)
+    }
+    
+    /// Convert JSON string to DataFrame (helper for streaming)
+    fn json_to_dataframe(json_str: &str) -> Result<DataFrame> {
+        use std::io::Cursor;
+        let cursor = Cursor::new(json_str.as_bytes());
+        JsonReader::new(cursor)
+            .finish()
+            .map_err(|e| PolaroidError::Polars(e))
     }
 }
 
@@ -60,7 +65,7 @@ impl DataFrameService for PolaroidDataFrameService {
     type StreamMessageQueueStream = tokio_stream::wrappers::ReceiverStream<std::result::Result<ArrowBatch, Status>>;
     type CollectStreamingStream = tokio_stream::wrappers::ReceiverStream<std::result::Result<ArrowBatch, Status>>;
     
-    /// Read Parquet file
+    /// Read Parquet file (optimized)
     async fn read_parquet(
         &self,
         request: Request<ReadParquetRequest>,
@@ -68,7 +73,7 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         info!("ReadParquet request: path={}", req.path);
         
-        // Read parquet file
+        // Read parquet file with optimizations
         let path_buf = std::path::PathBuf::from(req.path);
         let path = PlPath::Local(Arc::from(path_buf.into_boxed_path()));
         let mut lf = LazyFrame::scan_parquet(path, Default::default())
@@ -82,21 +87,22 @@ impl DataFrameService for PolaroidDataFrameService {
         // Apply predicate pushdown if specified
         if let Some(predicate) = req.predicate {
             if !predicate.is_empty() {
-                // For Phase 1, we'll support simple predicates
-                // TODO: Implement full expression parser in Phase 2
                 debug!("Predicate pushdown: {}", predicate);
+                // TODO: Parse predicate string into Expr in Phase 2
             }
         }
         
         // Apply row limit if specified
         if let Some(n_rows) = req.n_rows {
             if n_rows > 0 {
-                // Cast to IdxSize (u32 or u64 depending on bigidx feature)
                 lf = lf.limit(n_rows.try_into().unwrap_or(IdxSize::MAX));
             }
         }
         
-        // Collect to DataFrame
+        // Enable streaming and parallel execution
+        lf = lf.with_streaming(true);
+        
+        // Collect to DataFrame with optimizations
         let df = lf.collect()
             .map_err(|e| PolaroidError::Polars(e))?;
         
@@ -154,15 +160,18 @@ impl DataFrameService for PolaroidDataFrameService {
         let df = self.handle_manager.get_dataframe(&req.handle)
             .map_err(|e| Status::from(e))?;
         
-        // For Phase 1, we'll implement basic expression support
-        // Full expression parser in Phase 2
-        if let Some(_expr) = req.predicate {
-            // TODO: Parse and apply expression
-            return Err(Status::unimplemented("Expression filtering not yet implemented in Phase 1"));
-        }
+        // Apply optimized filter with expression support
+        let filtered = if let Some(expr_str) = req.predicate {
+            // Use optimized parallel filter with SIMD hints
+            ParallelFilter::apply_with_expr(&df, &expr_str)
+                .map_err(|e| Status::internal(format!("Filter failed: {}", e)))?
+        } else {
+            // No predicate - return same DataFrame
+            (*df).clone()
+        };
         
-        // For now, return same DataFrame (will implement in Phase 2)
-        let handle = self.handle_manager.create_handle((*df).clone());
+        // Store filtered DataFrame
+        let handle = self.handle_manager.create_handle(filtered);
         
         Ok(Response::new(DataFrameHandle {
             handle,
@@ -315,93 +324,665 @@ impl DataFrameService for PolaroidDataFrameService {
         }))
     }
     
-    // Stubs for Phase 2+ operations
-    async fn read_csv(&self, _request: Request<ReadCsvRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("read_csv will be implemented in Phase 2"))
+    // Phase 2 operations
+    async fn read_csv(&self, request: Request<ReadCsvRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        info!("ReadCsv request: path={}", req.path);
+        
+        // Build CSV reader with options
+        let mut lf = LazyCsvReader::new(&req.path);
+        
+        if req.has_header {
+            lf = lf.has_header(true);
+        }
+        if !req.separator.is_empty() {
+            lf = lf.with_separator(req.separator.as_bytes()[0]);
+        }
+        if let Some(n_rows) = req.n_rows {
+            if n_rows > 0 {
+                lf = lf.with_n_rows(Some(n_rows as usize));
+            }
+        }
+        
+        // Collect with streaming enabled
+        let df = lf.finish()
+            .map_err(|e| Status::internal(format!("CSV read failed: {}", e)))?
+            .with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("CSV collect failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(df);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn write_csv(&self, _request: Request<WriteCsvRequest>) -> std::result::Result<Response<WriteResponse>, Status> {
-        Err(Status::unimplemented("write_csv will be implemented in Phase 2"))
+    async fn write_csv(&self, request: Request<WriteCsvRequest>) -> std::result::Result<Response<WriteResponse>, Status> {
+        let req = request.into_inner();
+        info!("WriteCsv request: handle={}, path={}", req.handle, req.path);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Write CSV with options
+        let mut file = std::fs::File::create(&req.path)
+            .map_err(|e| Status::internal(format!("Failed to create file: {}", e)))?;
+        
+        CsvWriter::new(&mut file)
+            .has_header(req.has_header)
+            .with_separator(if req.separator.is_empty() { b',' } else { req.separator.as_bytes()[0] })
+            .finish(&mut (*df).clone())
+            .map_err(|e| Status::internal(format!("CSV write failed: {}", e)))?;
+        
+        Ok(Response::new(WriteResponse {
+            success: true,
+            rows_written: df.height() as u64,
+        }))
     }
     
-    async fn stream_web_socket(&self, _request: Request<WebSocketSourceRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
-        Err(Status::unimplemented("stream_web_socket will be implemented in Phase 5"))
+    async fn stream_web_socket(&self, request: Request<WebSocketSourceRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
+        let req = request.into_inner();
+        info!("WebSocket stream: url={}", req.url);
+        
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        
+        // Spawn WebSocket streaming task
+        tokio::spawn(async move {
+            use tokio_tungstenite::{connect_async, tungstenite::Message};
+            use futures::StreamExt;
+            
+            match connect_async(&req.url).await {
+                Ok((ws_stream, _)) => {
+                    let (_, mut read) = ws_stream.split();
+                    
+                    while let Some(msg) = read.next().await {
+                        match msg {
+                            Ok(Message::Text(text)) => {
+                                // Parse JSON to DataFrame
+                                if let Ok(df) = Self::json_to_dataframe(&text) {
+                                    let arrow_data = FastArrowSerializer::to_ipc_zero_copy(&df)
+                                        .unwrap_or_default();
+                                    
+                                    if tx.send(Ok(ArrowBatch {
+                                        arrow_ipc: arrow_data,
+                                        error: None,
+                                    })).await.is_err() {
+                                        break;
+                                    }
+                                }
+                            },
+                            Ok(Message::Close(_)) | Err(_) => break,
+                            _ => continue,
+                        }
+                    }
+                },
+                Err(e) => {
+                    let _ = tx.send(Err(Status::internal(format!("WebSocket connection failed: {}", e)))).await;
+                }
+            }
+        });
+        
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
     
-    async fn stream_rest_api(&self, _request: Request<RestApiRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
-        Err(Status::unimplemented("stream_rest_api will be implemented in Phase 5"))
+    async fn stream_rest_api(&self, request: Request<RestApiRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
+        let req = request.into_inner();
+        info!("REST API stream: url={}, interval={}ms", req.url, req.poll_interval_ms);
+        
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        
+        // Spawn REST API polling task
+        tokio::spawn(async move {
+            let client = reqwest::Client::new();
+            let interval = Duration::from_millis(req.poll_interval_ms.max(100));
+            let mut interval_timer = tokio::time::interval(interval);
+            
+            loop {
+                interval_timer.tick().await;
+                
+                let mut request_builder = match req.method.to_uppercase().as_str() {
+                    "GET" => client.get(&req.url),
+                    "POST" => client.post(&req.url),
+                    _ => client.get(&req.url),
+                };
+                
+                // Add headers
+                for (key, value) in req.headers.iter() {
+                    request_builder = request_builder.header(key, value);
+                }
+                
+                // Add body for POST
+                if !req.body.is_empty() {
+                    request_builder = request_builder.body(req.body.clone());
+                }
+                
+                match request_builder.send().await {
+                    Ok(response) => {
+                        if let Ok(text) = response.text().await {
+                            if let Ok(df) = Self::json_to_dataframe(&text) {
+                                let arrow_data = FastArrowSerializer::to_ipc_zero_copy(&df)
+                                    .unwrap_or_default();
+                                
+                                if tx.send(Ok(ArrowBatch {
+                                    arrow_ipc: arrow_data,
+                                    error: None,
+                                })).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        let _ = tx.send(Err(Status::internal(format!("REST API request failed: {}", e)))).await;
+                        break;
+                    }
+                }
+            }
+        });
+        
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
     
-    async fn stream_grpc(&self, _request: Request<GrpcStreamRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
-        Err(Status::unimplemented("stream_grpc will be implemented in Phase 5"))
+    async fn stream_grpc(&self, request: Request<GrpcStreamRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
+        let req = request.into_inner();
+        info!("gRPC stream: endpoint={}, service={}", req.endpoint, req.service_name);
+        
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        
+        // Spawn gRPC streaming task
+        tokio::spawn(async move {
+            // Note: This is a simplified implementation
+            // In production, you'd use tonic::transport::Channel to connect to the remote gRPC service
+            let _ = tx.send(Err(Status::unimplemented(
+                "gRPC streaming requires dynamic service discovery - use specific client implementation"
+            ))).await;
+        });
+        
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
     
-    async fn stream_message_queue(&self, _request: Request<MessageQueueRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
-        Err(Status::unimplemented("stream_message_queue will be implemented in Phase 5"))
+    async fn stream_message_queue(&self, request: Request<MessageQueueRequest>) -> std::result::Result<Response<Self::CollectStream>, Status> {
+        let req = request.into_inner();
+        info!("Message queue stream: broker={}, topic={}, protocol={}", req.broker_url, req.topic, req.protocol);
+        
+        let (tx, rx) = tokio::sync::mpsc::channel(100);
+        
+        // Spawn message queue consumer task
+        tokio::spawn(async move {
+            match req.protocol.to_lowercase().as_str() {
+                "kafka" => {
+                    // Kafka implementation would go here
+                    // Requires rdkafka crate
+                    let _ = tx.send(Err(Status::unimplemented(
+                        "Kafka streaming requires rdkafka dependency - add to Cargo.toml"
+                    ))).await;
+                },
+                "rabbitmq" | "amqp" => {
+                    // RabbitMQ implementation would go here
+                    // Requires lapin crate
+                    let _ = tx.send(Err(Status::unimplemented(
+                        "RabbitMQ streaming requires lapin dependency - add to Cargo.toml"
+                    ))).await;
+                },
+                "redis" => {
+                    // Redis pub/sub implementation would go here
+                    // Requires redis-rs crate
+                    let _ = tx.send(Err(Status::unimplemented(
+                        "Redis streaming requires redis dependency - add to Cargo.toml"
+                    ))).await;
+                },
+                _ => {
+                    let _ = tx.send(Err(Status::invalid_argument(
+                        format!("Unsupported message queue protocol: {}", req.protocol)
+                    ))).await;
+                }
+            }
+        });
+        
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
     
-    async fn with_column(&self, _request: Request<WithColumnRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("with_column will be implemented in Phase 2"))
+    async fn with_column(&self, request: Request<WithColumnRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("WithColumn request: handle={}, name={}, expr={}", req.handle, req.name, req.expression);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Use lazy evaluation for optimization
+        let lf = (*df).clone().lazy();
+        
+        // Parse expression and add column
+        // For now, support basic expressions like lit values
+        let expr = ParallelFilter::parse_expr(&req.expression)
+            .map_err(|e| Status::invalid_argument(format!("Invalid expression: {}", e)))?;
+        
+        let result = lf.with_column(expr.alias(&req.name))
+            .with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("with_column failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn with_columns(&self, _request: Request<WithColumnsRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("with_columns will be implemented in Phase 2"))
+    async fn with_columns(&self, request: Request<WithColumnsRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("WithColumns request: handle={}, columns={:?}", req.handle, req.columns);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let mut lf = (*df).clone().lazy();
+        
+        // Add each column
+        for col_def in req.columns.iter() {
+            let expr = ParallelFilter::parse_expr(&col_def.expression)
+                .map_err(|e| Status::invalid_argument(format!("Invalid expression: {}", e)))?;
+            lf = lf.with_column(expr.alias(&col_def.name));
+        }
+        
+        let result = lf.with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("with_columns failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn drop(&self, _request: Request<DropRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("drop will be implemented in Phase 2"))
+    async fn drop(&self, request: Request<DropRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Drop request: handle={}, columns={:?}", req.handle, req.columns);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Drop columns
+        let result = (*df).clone().drop_many(&req.columns)
+            .map_err(|e| Status::internal(format!("drop failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn rename(&self, _request: Request<RenameRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("rename will be implemented in Phase 2"))
+    async fn rename(&self, request: Request<RenameRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Rename request: handle={}, mapping={:?}", req.handle, req.columns);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let mut result = (*df).clone();
+        
+        // Rename columns
+        for (old_name, new_name) in req.columns.iter() {
+            result.rename(old_name, new_name)
+                .map_err(|e| Status::internal(format!("rename failed: {}", e)))?;
+        }
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn sort(&self, _request: Request<SortRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("sort will be implemented in Phase 2"))
+    async fn sort(&self, request: Request<SortRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Sort request: handle={}, by={:?}", req.handle, req.by);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        if req.by.is_empty() {
+            return Err(Status::invalid_argument("Sort columns cannot be empty"));
+        }
+        
+        // Use lazy evaluation for optimization
+        let mut lf = (*df).clone().lazy();
+        
+        // Build sort expressions
+        let sort_exprs: Vec<Expr> = req.by.iter().zip(req.descending.iter())
+            .map(|(col_name, desc)| {
+                let expr = col(col_name);
+                if *desc {
+                    expr.sort(SortOptions {
+                        descending: true,
+                        nulls_last: req.nulls_last,
+                        multithreaded: true,
+                        maintain_order: req.maintain_order,
+                    })
+                } else {
+                    expr.sort(SortOptions {
+                        descending: false,
+                        nulls_last: req.nulls_last,
+                        multithreaded: true,
+                        maintain_order: req.maintain_order,
+                    })
+                }
+            })
+            .collect();
+        
+        lf = lf.sort_by_exprs(&sort_exprs, SortMultipleOptions {
+            descending: req.descending.clone(),
+            nulls_last: vec![req.nulls_last; req.by.len()],
+            multithreaded: true,
+            maintain_order: req.maintain_order,
+        });
+        
+        // Collect with streaming
+        let result = lf.with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("Sort failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn unique(&self, _request: Request<UniqueRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("unique will be implemented in Phase 2"))
+    async fn unique(&self, request: Request<UniqueRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Unique request: handle={}, subset={:?}", req.handle, req.subset);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let lf = (*df).clone().lazy();
+        
+        let result = if req.subset.is_empty() {
+            lf.unique(None, UniqueKeepStrategy::First)
+        } else {
+            lf.unique(Some(req.subset.clone()), UniqueKeepStrategy::First)
+        }
+        .with_streaming(true)
+        .collect()
+        .map_err(|e| Status::internal(format!("unique failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn limit(&self, _request: Request<LimitRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("limit will be implemented in Phase 2"))
+    async fn limit(&self, request: Request<LimitRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Limit request: handle={}, n={}", req.handle, req.n);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let result = (*df).clone().head(Some(req.n as usize));
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn head(&self, _request: Request<HeadRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("head will be implemented in Phase 2"))
+    async fn head(&self, request: Request<HeadRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Head request: handle={}, n={}", req.handle, req.n);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let n = if req.n > 0 { req.n as usize } else { 5 };
+        let result = (*df).clone().head(Some(n));
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn tail(&self, _request: Request<TailRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("tail will be implemented in Phase 2"))
+    async fn tail(&self, request: Request<TailRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Tail request: handle={}, n={}", req.handle, req.n);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let n = if req.n > 0 { req.n as usize } else { 5 };
+        let result = (*df).clone().tail(Some(n));
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn slice(&self, _request: Request<SliceRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("slice will be implemented in Phase 2"))
+    async fn slice(&self, request: Request<SliceRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Slice request: handle={}, offset={}, length={}", req.handle, req.offset, req.length);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        let result = (*df).clone().slice(req.offset, req.length as usize);
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn group_by(&self, _request: Request<GroupByRequest>) -> std::result::Result<Response<GroupByHandle>, Status> {
-        Err(Status::unimplemented("group_by will be implemented in Phase 2"))
+    async fn group_by(&self, request: Request<GroupByRequest>) -> std::result::Result<Response<GroupByHandle>, Status> {
+        let req = request.into_inner();
+        debug!("GroupBy request: handle={}, by={:?}", req.handle, req.by);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Store grouped DataFrame reference
+        // For now, we'll just return a handle - actual aggregation happens in agg()
+        let handle = self.handle_manager.create_handle((*df).clone());
+        
+        Ok(Response::new(GroupByHandle {
+            handle,
+            group_columns: req.by,
+            error: None,
+        }))
     }
     
-    async fn agg(&self, _request: Request<AggRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("agg will be implemented in Phase 2"))
+    async fn agg(&self, request: Request<AggRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Agg request: group_handle={}, aggs={:?}", req.group_handle, req.aggregations);
+        
+        // Get DataFrame from group handle
+        let df = self.handle_manager.get_dataframe(&req.group_handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Extract group columns from the proto message
+        // In a real implementation, we'd need to track group_by metadata
+        // For now, parse aggregation expressions
+        if req.aggregations.is_empty() {
+            return Err(Status::invalid_argument("No aggregations specified"));
+        }
+        
+        // Use optimized group_by implementation
+        let result = FastGroupBy::group_agg(&df, &req.group_columns, &req.aggregations)
+            .map_err(|e| Status::internal(format!("Aggregation failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn pivot(&self, _request: Request<PivotRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("pivot will be implemented in Phase 2"))
+    async fn pivot(&self, request: Request<PivotRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Pivot request: handle={}, index={:?}, columns={:?}", req.handle, req.index, req.columns);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Use Polars pivot operation
+        let result = (*df).clone()
+            .pivot(
+                &req.values,
+                Some(&req.index),
+                Some(&req.columns),
+                false,
+                None,
+                None,
+            )
+            .map_err(|e| Status::internal(format!("pivot failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn melt(&self, _request: Request<MeltRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("melt will be implemented in Phase 2"))
+    async fn melt(&self, request: Request<MeltRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Melt request: handle={}, id_vars={:?}, value_vars={:?}", req.handle, req.id_vars, req.value_vars);
+        
+        // Get DataFrame
+        let df = self.handle_manager.get_dataframe(&req.handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Use Polars melt operation
+        let args = MeltArgs {
+            id_vars: req.id_vars.iter().map(|s| s.as_str()).collect(),
+            value_vars: req.value_vars.iter().map(|s| s.as_str()).collect(),
+            variable_name: Some(req.var_name.as_str()),
+            value_name: Some(req.value_name.as_str()),
+            streamable: true,
+        };
+        
+        let result = (*df).clone()
+            .melt2(args)
+            .map_err(|e| Status::internal(format!("melt failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn join(&self, _request: Request<JoinRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("join will be implemented in Phase 2"))
+    async fn join(&self, request: Request<JoinRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Join request: left={}, right={}, on={:?}", req.left_handle, req.right_handle, req.on);
+        
+        // Get DataFrames
+        let left_df = self.handle_manager.get_dataframe(&req.left_handle)
+            .map_err(|e| Status::from(e))?;
+        let right_df = self.handle_manager.get_dataframe(&req.right_handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Parse join type
+        let join_type = match req.how.to_lowercase().as_str() {
+            "inner" => JoinType::Inner,
+            "left" => JoinType::Left,
+            "outer" | "full" => JoinType::Full,
+            "semi" => JoinType::Semi,
+            "anti" => JoinType::Anti,
+            "cross" => JoinType::Cross,
+            _ => return Err(Status::invalid_argument(format!("Unknown join type: {}", req.how))),
+        };
+        
+        // Perform join using lazy evaluation for optimization
+        let left_lf = (*left_df).clone().lazy();
+        let right_lf = (*right_df).clone().lazy();
+        
+        let joined_lf = if req.on.is_empty() {
+            return Err(Status::invalid_argument("Join columns cannot be empty"));
+        } else {
+            left_lf.join(
+                right_lf,
+                &req.on.iter().map(|s| col(s)).collect::<Vec<_>>(),
+                &req.on.iter().map(|s| col(s)).collect::<Vec<_>>(),
+                JoinArgs::new(join_type),
+            )
+        };
+        
+        // Collect with streaming enabled
+        let result = joined_lf.with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("Join failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
-    async fn cross(&self, _request: Request<CrossRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
-        Err(Status::unimplemented("cross will be implemented in Phase 2"))
+    async fn cross(&self, request: Request<CrossRequest>) -> std::result::Result<Response<DataFrameHandle>, Status> {
+        let req = request.into_inner();
+        debug!("Cross join request: left={}, right={}", req.left_handle, req.right_handle);
+        
+        // Get DataFrames
+        let left_df = self.handle_manager.get_dataframe(&req.left_handle)
+            .map_err(|e| Status::from(e))?;
+        let right_df = self.handle_manager.get_dataframe(&req.right_handle)
+            .map_err(|e| Status::from(e))?;
+        
+        // Perform cross join using lazy evaluation
+        let left_lf = (*left_df).clone().lazy();
+        let right_lf = (*right_df).clone().lazy();
+        
+        let result = left_lf
+            .cross_join(right_lf, None)
+            .with_streaming(true)
+            .collect()
+            .map_err(|e| Status::internal(format!("cross join failed: {}", e)))?;
+        
+        let handle = self.handle_manager.create_handle(result);
+        
+        Ok(Response::new(DataFrameHandle {
+            handle,
+            error: None,
+        }))
     }
     
     async fn as_time_series(&self, _request: Request<AsTimeSeriesRequest>) -> std::result::Result<Response<TimeSeriesHandle>, Status> {

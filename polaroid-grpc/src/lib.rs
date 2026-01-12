@@ -1,6 +1,7 @@
 pub mod handles;
 pub mod service;
 pub mod error;
+pub mod optimizations;
 
 // Generated proto code
 pub mod proto {

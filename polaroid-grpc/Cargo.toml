@@ -10,7 +10,8 @@ repository = "https://github.com/polaroid-rs/polaroid"
 [dependencies]
 # Core Polars/Arrow
 polars = { path = "../crates/polars", features = ["lazy", "new_streaming", "parquet", "csv", "json", "temporal", "dtype-time"] }
-polars-io = { path = "../crates/polars-io", features = ["ipc"] }
+polars-io = { path = "../crates/polars-io", features = ["ipc", "csv"] }
+polars-lazy = { path = "../crates/polars-lazy" }
 polars-utils = { path = "../crates/polars-utils" }
 arrow = "53.0"
 arrow-flight = "53.0"
@@ -34,9 +35,10 @@ prost-types = "0.12"
 anyhow = "1.0"
 thiserror = "1.0"
 
-# Networking (optional for Phase 5)
-reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
-tokio-tungstenite = { version = "0.21", features = ["native-tls"], optional = true }
+# Networking (Phase 5 streaming)
+reqwest = { version = "0.11", features = ["json", "stream"] }
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+futures-util = "0.3"
 
 # Utilities
 uuid = { version = "1.6", features = ["v4", "serde"] }
@@ -75,8 +77,8 @@ name = "polaroid_grpc"
 path = "src/lib.rs"
 
 [features]
-default = []
+default = ["streaming", "timeseries", "network-sources"]
 streaming = []
 timeseries = []
-network-sources = ["reqwest", "tokio-tungstenite"]
+network-sources = []
 full = ["streaming", "timeseries", "network-sources"]
