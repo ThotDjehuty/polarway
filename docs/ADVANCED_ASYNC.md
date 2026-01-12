@@ -119,9 +119,9 @@ opt = Option.nothing()
 value = opt.unwrap_or(0)  # 0
 
 # Chain with and_then
-opt = Option.some("data.parquet") \
-    .and_then(lambda path: read_file(path)) \
-    .and_then(lambda df: filter_df(df))
+opt = (Option.some("data.parquet")
+       .and_then(lambda path: read_file(path))
+       .and_then(lambda df: filter_df(df)))
 ```
 
 ### Practical Example: No Exceptions!
@@ -135,11 +135,7 @@ async def process_files(paths: List[str]) -> List[pd.DataFrame]:
         results = await client.batch_read(paths)
         
         # Filter successful reads (no try/except!)
-        handles = [
-            r.unwrap() 
-            for r in results 
-            if r.is_ok()
-        ]
+        handles = [r.unwrap() for r in results if r.is_ok()]
         
         # Log errors functionally
         for r in results:
@@ -148,11 +144,7 @@ async def process_files(paths: List[str]) -> List[pd.DataFrame]:
         # Collect DataFrames
         tables = await client.batch_collect(handles)
         
-        return [
-            t.unwrap() 
-            for t in tables 
-            if t.is_ok()
-        ]
+        return [t.unwrap() for t in tables if t.is_ok()]
 ```
 
 ### Functor Implementation
@@ -260,6 +252,7 @@ class WebSocketDataStream:
                         yield json.loads(message)
             except ConnectionError:
                 await asyncio.sleep(1.0)  # Exponential backoff
+
 
 async def process_stream():
     ws = WebSocketDataStream("wss://stream.binance.com:9443/ws/btcusdt@trade")
@@ -384,14 +377,14 @@ class AsyncPolaroidClient:
     def __init__(self):
         self._shutdown_event = asyncio.Event()
         self._tasks = []
-        
+    
     async def __aenter__(self):
         # Setup signal handlers
         loop = asyncio.get_event_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._shutdown_event.set)
         return self
-        
+    
     async def __aexit__(self, *args):
         # Cancel all tasks
         for task in self._tasks:
@@ -441,7 +434,7 @@ class CircuitBreaker:
         self.failures = 0
         self.last_failure = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-        
+    
     async def call(self, func, *args, **kwargs):
         if self.state == "OPEN":
             if datetime.now() - self.last_failure > timedelta(seconds=self.timeout):
@@ -455,14 +448,13 @@ class CircuitBreaker:
                 self.state = "CLOSED"
                 self.failures = 0
             return result
-            
         except Exception as e:
             self.failures += 1
             self.last_failure = datetime.now()
             
             if self.failures >= self.threshold:
                 self.state = "OPEN"
-                
+            
             raise e
 ```
 
@@ -476,10 +468,9 @@ async def heartbeat(client: AsyncPolaroidClient, interval: float = 30.0):
         try:
             # Ping server
             await asyncio.wait_for(client.ping(), timeout=5.0)
-            
         except asyncio.TimeoutError:
             print("⚠️ Health check timeout - server may be down")
-            
+        
         await asyncio.sleep(interval)
 ```
 
