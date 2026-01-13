@@ -7,6 +7,7 @@ use tracing_subscriber;
 pub mod handles;
 pub mod service;
 pub mod error;
+pub mod http_api;
 
 // Generated proto code
 pub mod proto {
@@ -38,6 +39,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Create service
     let dataframe_service = PolaroidDataFrameService::new();
+
+    // Start HTTP REST API (QuestDB-like)
+    let http_bind_addr = std::env::var("POLAROID_HTTP_BIND_ADDRESS")
+        .unwrap_or_else(|_| "0.0.0.0:9000".to_string());
+    let http_addr: SocketAddr = http_bind_addr.parse()?;
+    let http_state = http_api::HttpApiState {
+        handle_manager: dataframe_service.handle_manager(),
+    };
+    tokio::spawn(async move {
+        if let Err(e) = http_api::serve(http_addr, http_state).await {
+            tracing::error!("HTTP API error: {e}");
+        }
+    });
     
     info!("✅ Server ready! Listening on {}", addr);
     

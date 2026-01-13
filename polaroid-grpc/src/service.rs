@@ -4,10 +4,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use polars::prelude::*;
-use polars_io::prelude::*;
 use polars_utils::plpath::PlPath;
 use std::io::Cursor;
-use polars::datatypes::CompatLevel;
 
 use crate::proto::{
     data_frame_service_server::DataFrameService,
@@ -36,14 +34,18 @@ impl PolaroidDataFrameService {
         
         Self { handle_manager }
     }
+
+    pub fn handle_manager(&self) -> Arc<HandleManager> {
+        Arc::clone(&self.handle_manager)
+    }
     
     /// Convert Polars DataFrame to Arrow IPC bytes
     fn dataframe_to_arrow_ipc(df: &DataFrame) -> Result<Vec<u8>> {
-        let mut buffer = Cursor::new(Vec::new());
+        let buffer = Cursor::new(Vec::new());
         let df_clone = df.clone();
         
         // Use ParquetWriter with IPC format
-        let mut parquet_writer = ParquetWriter::new(buffer);
+        let parquet_writer = ParquetWriter::new(buffer);
         parquet_writer.finish(&mut df_clone.clone())
             .map_err(|e| PolaroidError::Polars(e))?;
         

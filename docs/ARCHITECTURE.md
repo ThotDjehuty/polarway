@@ -422,24 +422,52 @@ let df2 = df1.clone();  // Just increments Arc counter (O(1))
 
 ### Architecture Overview
 
+Polaroid’s distributed direction is:
+- **Time-series storage/metadata/observability** anchored in **QuestDB** (tables, partitions, retention, SQL, system tables).
+- **Distributed query execution** via **DataFusion + Ballista** (scheduler + executors, shuffle, object store).
+- **APIs**: gRPC remains the primary engine API; a **QuestDB-like REST endpoint** (`/exec`) is added for compatibility and easy integrations.
+
+In that model, Polaroid is the **gateway / control-plane** that:
+- receives API requests (gRPC/REST)
+- resolves handles and metadata
+- compiles queries (DataFusion logical plan)
+- executes locally (single-node) or dispatches to Ballista (distributed)
+- returns results as handles (and via Arrow IPC streams)
+
 ```
-┌────────────┐    ┌────────────┐    ┌────────────┐
-│  Client    │    │   Client   │    │   Client   │
-└─────┬──────┘    └─────┬──────┘    └─────┬──────┘
-      │                 │                  │
-      └─────────────────┼──────────────────┘
-                        │
-                 Load Balancer
-                        │
-      ┌─────────────────┼──────────────────┐
-      │                 │                  │
-┌─────▼──────┐    ┌─────▼──────┐    ┌─────▼──────┐
-│  Server 1  │    │  Server 2  │    │  Server N  │
-│            │    │            │    │            │
-│ Partition  │    │ Partition  │    │ Partition  │
-│   0-999    │    │ 1000-1999  │    │ 2000-2999  │
-└────────────┘    └────────────┘    └────────────┘
+Clients
+  (Python/Rust/REST)
+      |
+      v
+  gRPC/HTTP Load Balancer
+      |
+      v
+  Polaroid API Gateways (stateless)
+   - gRPC Service
+   - REST /exec (QuestDB-like)
+   - Handle routing
+   - Plan compilation
+      |
+      | dispatch/execute
+      v
+  DataFusion (single-node)  OR  Ballista (distributed)
+      |
+      | reads/writes
+      v
+  Object Store (results, shuffles) + QuestDB (time-series, metadata)
 ```
+
+### Ballista (distributed execution)
+
+Ballista architecture (at a high level):
+- **Scheduler**: receives DataFusion plans and coordinates execution.
+- **Executors**: run partitions of the plan and exchange shuffle data.
+- **Object store**: stores shuffle and result artifacts (recommended for scale).
+
+Polaroid integration direction:
+- Polaroid builds a DataFusion plan and submits it to Ballista when `distributed=true`.
+- Handles reference results stored externally (object store).
+- QuestDB remains the authoritative store for time-series tables and operational metadata.
 
 ### Data Partitioning
 
@@ -704,3 +732,6 @@ LIMIT 10;
 - [Quick Reference](QUICK_REFERENCE.md) - Common operations cheat sheet
 - [API Documentation](API_DOCUMENTATION.md) - Complete API reference
 - [Migration Guide](MIGRATION_GUIDE.md) - Moving from Polars
+- [REST Exec API](REST_EXEC_API.md) - QuestDB-like `/exec` endpoint
+- [Distributed Getting Started](DISTRIBUTED_GETTING_STARTED.md) - Multi-container/VM setup
+- [Distributed Implementation Plan](DISTRIBUTED_IMPLEMENTATION_PLAN.md) - Phased rollout and best practices
