@@ -3,7 +3,7 @@
 *.pyd
 *.pdb
 *.ipynb
-!notebooks/*.ipynb
+!notebooks/rest_exec_api_demo.ipynb
 .ENV
 .env
 .ipynb_checkpoints/
