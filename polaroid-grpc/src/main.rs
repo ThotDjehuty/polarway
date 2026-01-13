@@ -2,18 +2,7 @@ use tonic::transport::Server;
 use std::net::SocketAddr;
 use tracing::{info, Level};
 use tracing_subscriber;
-
-// Re-export for library usage
-pub mod handles;
-pub mod service;
-pub mod error;
-
-// Generated proto code
-pub mod proto {
-    tonic::include_proto!("polaroid.v1");
-}
-
-use service::PolaroidDataFrameService;
+use polaroid_grpc::{proto, PolaroidDataFrameService};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,7 +32,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Start server
     Server::builder()
-        .add_service(proto::data_frame_service_server::DataFrameServiceServer::new(dataframe_service))
+        .add_service(proto::data_frame_service_server::DataFrameServiceServer::new(
+            dataframe_service,
+        ))
         .serve(addr)
         .await?;
     

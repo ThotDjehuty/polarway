@@ -4,46 +4,49 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use polars::prelude::*;
-use polars_io::prelude::*;
 use polars_utils::plpath::PlPath;
 use std::io::Cursor;
-use polars::datatypes::CompatLevel;
 
-use crate::proto::{
+use polaroid_grpc::proto::{
     data_frame_service_server::DataFrameService,
     *,
 };
-use crate::handles::HandleManager;
-use crate::error::{PolaroidError, Result};
+use polaroid_grpc::handle_provider::{handle_provider_from_env, HandleProviderImpl, HandleStoreMode};
+use polaroid_grpc::error::{PolaroidError, Result};
 
 pub struct PolaroidDataFrameService {
-    handle_manager: Arc<HandleManager>,
+    handle_provider: Arc<HandleProviderImpl>,
 }
 
 impl PolaroidDataFrameService {
     pub fn new() -> Self {
-        let handle_manager = Arc::new(HandleManager::default());
-        
-        // Spawn cleanup task
-        let manager_clone = Arc::clone(&handle_manager);
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(300));
-            loop {
-                interval.tick().await;
-                manager_clone.cleanup_expired();
+        let (handle_provider, maybe_manager) = handle_provider_from_env()
+            .expect("Failed to initialize handle provider");
+
+        // Spawn cleanup task only for in-memory mode.
+        if handle_provider.mode() == HandleStoreMode::InMemory {
+            if let Some(manager) = maybe_manager {
+                let manager_clone = Arc::clone(&manager);
+                tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(Duration::from_secs(300));
+                    loop {
+                        interval.tick().await;
+                        manager_clone.cleanup_expired();
+                    }
+                });
             }
-        });
-        
-        Self { handle_manager }
+        }
+
+        Self { handle_provider }
     }
     
     /// Convert Polars DataFrame to Arrow IPC bytes
     fn dataframe_to_arrow_ipc(df: &DataFrame) -> Result<Vec<u8>> {
-        let mut buffer = Cursor::new(Vec::new());
+        let buffer = Cursor::new(Vec::new());
         let df_clone = df.clone();
         
         // Use ParquetWriter with IPC format
-        let mut parquet_writer = ParquetWriter::new(buffer);
+        let parquet_writer = ParquetWriter::new(buffer);
         parquet_writer.finish(&mut df_clone.clone())
             .map_err(|e| PolaroidError::Polars(e))?;
         
@@ -160,7 +163,11 @@ impl DataFrameService for PolaroidDataFrameService {
         let df = lf.collect()
             .map_err(|e| Status::internal(format!("Failed to collect: {}", e)))?;
         
-        let handle = self.handle_manager.create_handle(df);
+        let handle = self
+            .handle_provider
+            .create_handle(df)
+            .await
+            .map_err(|e| Status::from(e))?;
         
         Ok(Response::new(DataFrameHandle {
             handle,
@@ -176,7 +183,10 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         info!("WriteParquet request: handle={}, path={}", req.handle, req.path);
         
-        let df = self.handle_manager.get_dataframe(&req.handle)
+        let df = self
+            .handle_provider
+            .get_dataframe(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         
         let mut file = std::fs::File::create(&req.path)
@@ -201,11 +211,18 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         debug!("Filter request: handle={}", req.handle);
         
-        let df = self.handle_manager.get_dataframe(&req.handle)
+        let df = self
+            .handle_provider
+            .get_dataframe(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         
         // For now, return unfiltered (expression parsing would go here)
-        let handle = self.handle_manager.create_handle((*df).clone());
+        let handle = self
+            .handle_provider
+            .create_handle((*df).clone())
+            .await
+            .map_err(|e| Status::from(e))?;
         
         Ok(Response::new(DataFrameHandle {
             handle,
@@ -221,7 +238,10 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         debug!("Select request: handle={}, columns={:?}", req.handle, req.columns);
         
-        let df = self.handle_manager.get_dataframe(&req.handle)
+        let df = self
+            .handle_provider
+            .get_dataframe(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         
         let selected = (*df).clone().lazy()
@@ -229,7 +249,11 @@ impl DataFrameService for PolaroidDataFrameService {
             .collect()
             .map_err(|e| Status::internal(format!("Select failed: {}", e)))?;
         
-        let handle = self.handle_manager.create_handle(selected);
+        let handle = self
+            .handle_provider
+            .create_handle(selected)
+            .await
+            .map_err(|e| Status::from(e))?;
         
         Ok(Response::new(DataFrameHandle {
             handle,
@@ -245,15 +269,21 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         debug!("GetSchema request: handle={}", req.handle);
         
-        let df = self.handle_manager.get_dataframe(&req.handle)
+        let df = self
+            .handle_provider
+            .get_dataframe(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         
         let schema_json = serde_json::to_string(&df.schema())
             .map_err(|e| Status::internal(format!("Failed to serialize schema: {}", e)))?;
         
         // Build ColumnInfo vector
-        let columns = df.get_column_names().iter().zip(df.dtypes().iter())
-            .map(|(name, dtype)| crate::proto::ColumnInfo {
+        let columns = df
+            .get_column_names()
+            .iter()
+            .zip(df.dtypes().iter())
+            .map(|(name, dtype)| polaroid_grpc::proto::ColumnInfo {
                 name: name.to_string(),
                 data_type: format!("{:?}", dtype),
                 nullable: true, // Polars columns are generally nullable
@@ -274,7 +304,10 @@ impl DataFrameService for PolaroidDataFrameService {
         let req = request.into_inner();
         info!("Collect request: handle={}", req.handle);
         
-        let df = self.handle_manager.get_dataframe(&req.handle)
+        let df = self
+            .handle_provider
+            .get_dataframe(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         
         let arrow_data = Self::dataframe_to_arrow_ipc(&df)
@@ -298,7 +331,10 @@ impl DataFrameService for PolaroidDataFrameService {
         request: Request<DropHandleRequest>,
     ) -> std::result::Result<Response<DropHandleResponse>, Status> {
         let req = request.into_inner();
-        self.handle_manager.drop_handle(&req.handle)
+        self
+            .handle_provider
+            .drop_handle(&req.handle)
+            .await
             .map_err(|e| Status::from(e))?;
         Ok(Response::new(DropHandleResponse { success: true }))
     }
@@ -312,9 +348,13 @@ impl DataFrameService for PolaroidDataFrameService {
         let mut alive = std::collections::HashMap::new();
         
         for handle in req.handles {
-            match self.handle_manager.heartbeat(&handle) {
-                Ok(_) => { alive.insert(handle, true); },
-                Err(_) => { alive.insert(handle, false); },
+            match self.handle_provider.heartbeat(&handle).await {
+                Ok(_) => {
+                    alive.insert(handle, true);
+                }
+                Err(_) => {
+                    alive.insert(handle, false);
+                }
             }
         }
         
@@ -386,7 +426,11 @@ impl DataFrameService for PolaroidDataFrameService {
         let df = Self::fetch_rest_api_data(req).await?;
         
         // Create handle for the DataFrame
-        let handle = self.handle_manager.create_handle(df);
+        let handle = self
+            .handle_provider
+            .create_handle(df)
+            .await
+            .map_err(|e| Status::from(e))?;
         
         Ok(Response::new(DataFrameHandle {
             handle,

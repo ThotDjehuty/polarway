@@ -149,7 +149,6 @@ impl Default for HandleManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use polars::prelude::*;
     
     fn create_test_df() -> DataFrame {
         df! {
