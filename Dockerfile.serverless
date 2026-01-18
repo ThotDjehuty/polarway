@@ -1,0 +1,82 @@
+# Serverless-Optimized Dockerfile for Polaroid
+# Target: Azure Container Apps / AWS Fargate / Cloud Run
+# Goals: Fast cold start (<500ms), small image (<60MB), low memory (<512MB)
+
+# ============================================================================
+# Stage 1: Build (Rust compilation)
+# ============================================================================
+FROM rust:1.75-slim AS builder
+
+WORKDIR /build
+
+# Install minimal build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace configuration
+COPY Cargo.toml Cargo.lock ./
+COPY crates crates/
+COPY polaroid-grpc polaroid-grpc/
+
+# Create dummy main for dependency caching
+RUN mkdir -p polaroid-grpc/src && \
+    echo "fn main() {}" > polaroid-grpc/src/main.rs && \
+    echo "pub fn dummy() {}" > polaroid-grpc/src/lib.rs
+
+# Build dependencies only (cached layer)
+RUN cargo build --release \
+    --manifest-path polaroid-grpc/Cargo.toml \
+    --no-default-features \
+    --features "http-api,lazy,sql,parquet" \
+    && rm -rf polaroid-grpc/src
+
+# Copy actual source code
+COPY polaroid-grpc/src polaroid-grpc/src
+
+# Build with optimizations
+ENV RUSTFLAGS="-C target-cpu=native -C opt-level=3 -C lto=thin"
+RUN cargo build --release \
+    --manifest-path polaroid-grpc/Cargo.toml \
+    --no-default-features \
+    --features "http-api,lazy,sql,parquet" \
+    && strip target/release/polaroid-grpc
+
+# ============================================================================
+# Stage 2: Runtime (Minimal Debian)
+# ============================================================================
+FROM debian:bookworm-slim
+
+# Install only essential runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user
+RUN useradd -m -u 1000 polaroid
+
+# Copy binary from builder
+COPY --from=builder /build/target/release/polaroid-grpc /usr/local/bin/polaroid
+RUN chmod +x /usr/local/bin/polaroid
+
+# Switch to non-root user
+USER polaroid
+WORKDIR /home/polaroid
+
+# Environment configuration
+ENV PORT=8080
+ENV RUST_LOG=info
+ENV RUST_BACKTRACE=0
+ENV TOKIO_WORKER_THREADS=2
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose HTTP port
+EXPOSE 8080
+
+# Run polaroid in serverless mode
+CMD ["polaroid", "--mode", "serverless"]
