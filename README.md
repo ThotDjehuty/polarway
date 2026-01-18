@@ -26,7 +26,72 @@ Polaroid is a fast DataFrame library built on [Polars](https://github.com/pola-r
 - **🛡️ Type Safety**: Rust's Result/Option monads for robust error handling
 - **🔄 Language Agnostic**: Any gRPC-capable language (Python, Rust, Go, TypeScript)
 
-## 🏗️ How It Works
+## � Functional Programming Excellence
+
+Polaroid brings **Rust's functional programming elegance** to **Python's data science ecosystem**, making your data pipelines safer and more composable:
+
+### Monadic Error Handling
+```python
+# Traditional pandas - exceptions everywhere
+try:
+    df = pandas.read_csv("file.csv")
+    value = df["price"][0]  # Can throw KeyError, IndexError
+except Exception as e:
+    print(f"Error: {e}")
+
+# Polaroid - explicit Result/Option monads
+result = pd.read_csv("file.csv")
+match result:
+    case Ok(df):
+        value = df.select("price").first()  # Returns Option<T>
+        match value:
+            case Some(v): print(f"Value: {v}")
+            case None: print("No data")
+    case Err(e):
+        print(f"Error: {e}")
+```
+
+### Stream Processing with Functors
+```python
+# Composable stream transformations
+stream = (
+    pd.read_parquet_streaming("large_dataset/*.parquet")
+    .map(lambda batch: batch.select(["timestamp", "price"]))  # Functor
+    .filter(lambda batch: len(batch) > 0)  # Filter empty batches
+    .flat_map(lambda batch: batch.explode("nested"))  # Flatten
+    .take(1000)  # Lazy - only process what's needed
+)
+
+# Fold over stream (reduce in FP)
+total = stream.fold(
+    initial=0.0,
+    fn=lambda acc, batch: acc + batch["volume"].sum()
+)
+```
+
+### Time-Series Functors
+```python
+# Time-series as functorial transformations
+ts = pd.TimeSeriesFrame(data=df, timestamp_col="timestamp", freq="1s")
+
+result = (
+    ts
+    .map(lambda df: df.with_column(pl.col("price").log()))  # Log returns
+    .rolling_window("5m", fn=lambda w: w.mean())  # Rolling functor
+    .resample("1h", agg={"price": "ohlc"})  # Aggregation functor
+    .lag(1).diff()  # Temporal transformations
+)
+```
+
+**Why This Matters**:
+- **No Silent Failures**: Monadic error handling makes bugs visible
+- **Type Safety**: Rust's type system prevents runtime errors
+- **Composability**: Build complex pipelines from small, reusable functions
+- **Zero-Cost**: Functional abstractions compile to optimal machine code
+
+📚 **Learn More**: [Functional Programming Guide](docs/FUNCTIONAL_PROGRAMMING_ADVANTAGES.md)
+
+## �🏗️ How It Works
 
 Unlike Polars which embeds DataFrames in Python via PyO3, Polaroid uses a **handle-based architecture**:
 
@@ -366,6 +431,9 @@ This project follows the [Contributor Covenant Code of Conduct](https://www.cont
 
 ## 📚 Documentation
 
+- **[Functional Programming Guide](docs/FUNCTIONAL_PROGRAMMING_ADVANTAGES.md)**: Monads, functors, and stream processing 🎨
+- **[Mode Selection Guide](docs/MODE_SELECTION_GUIDE.md)**: Choose Portable/Standalone/Distributed modes
+- **[When NOT to Use Polaroid](docs/WHEN_NOT_TO_USE.md)**: Honest comparison with alternatives
 - **[Quick Reference](docs/QUICK_REFERENCE.md)**: Common operations cheat sheet
 - **[API Documentation](docs/API_DOCUMENTATION.md)**: Full Rust and Python APIs
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)**: Moving from Polars to Polaroid
