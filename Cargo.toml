@@ -24,9 +24,9 @@ default-members = [
 
 # Note: crates/* already includes:
 # - polars-streaming-adaptive (NEW): Adaptive streaming with memory-mapped I/O
+# - polars-timeseries (NEW): TWAP, VWAP, multi-frequency resampling for trading workflows
 # Future additions planned:
 # - polars-finance: Financial indicators (SMA, RSI, MACD) for Polars upstream contribution
-# - polars-timeseries: TWAP, VWAP, multi-frequency resampling for trading workflows
 
 [workspace.package]
 version = "0.52.0"

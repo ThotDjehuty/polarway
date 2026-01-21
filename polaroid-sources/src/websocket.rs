@@ -125,20 +125,113 @@ impl WebSocketSource {
         }
     }
 
-    fn json_to_record_batch(&self, _json: &str, _schema: &SchemaRef) -> Result<RecordBatch> {
-        // TODO: Implement JSON to RecordBatch conversion
-        // For now, return error
-        Err(SourceError::SerializationError(
-            "JSON parsing not yet implemented".to_string(),
-        ))
+    fn json_to_record_batch(&self, json: &str, schema: &SchemaRef) -> Result<RecordBatch> {
+        use arrow::array::{ArrayRef, Int64Array, Float64Array, StringArray};
+        
+        let parsed: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| SourceError::SerializationError(format!("Failed to parse JSON: {}", e)))?;
+
+        // Handle single object or array of objects
+        let rows = match &parsed {
+            serde_json::Value::Array(arr) => arr.clone(),
+            serde_json::Value::Object(_) => vec![parsed.clone()],
+            _ => return Err(SourceError::SerializationError(
+                "Expected JSON object or array".to_string(),
+            )),
+        };
+
+        if rows.is_empty() {
+            return Err(SourceError::SerializationError(
+                "Empty data array".to_string(),
+            ));
+        }
+
+        // Get field names from schema
+        let fields = schema.fields();
+        let mut arrays: Vec<ArrayRef> = Vec::new();
+
+        // Build arrays for each field
+        for field in fields {
+            let field_name = field.name();
+            let data_type = field.data_type();
+
+            match data_type {
+                arrow::datatypes::DataType::Int64 => {
+                    let mut values: Vec<i64> = Vec::new();
+                    for row in &rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(i) = val.as_i64() {
+                                    values.push(i);
+                                } else {
+                                    values.push(0);
+                                }
+                            } else {
+                                values.push(0);
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(Int64Array::from(values)));
+                }
+                arrow::datatypes::DataType::Float64 => {
+                    let mut values: Vec<f64> = Vec::new();
+                    for row in &rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(f) = val.as_f64() {
+                                    values.push(f);
+                                } else {
+                                    values.push(0.0);
+                                }
+                            } else {
+                                values.push(0.0);
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(Float64Array::from(values)));
+                }
+                arrow::datatypes::DataType::Utf8 => {
+                    let mut values: Vec<String> = Vec::new();
+                    for row in &rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(s) = val.as_str() {
+                                    values.push(s.to_string());
+                                } else {
+                                    values.push(val.to_string());
+                                }
+                            } else {
+                                values.push(String::new());
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(StringArray::from(values)));
+                }
+                _ => {
+                    return Err(SourceError::SerializationError(
+                        format!("Unsupported data type: {:?}", data_type),
+                    ));
+                }
+            }
+        }
+
+        RecordBatch::try_new(schema.clone(), arrays)
+            .map_err(|e| SourceError::SerializationError(format!("Failed to create record batch: {}", e)))
     }
 
-    fn binary_to_record_batch(&self, _data: &[u8], _schema: &SchemaRef) -> Result<RecordBatch> {
-        // TODO: Implement binary (Arrow IPC) to RecordBatch conversion
-        // For now, return error
-        Err(SourceError::SerializationError(
-            "Binary parsing not yet implemented".to_string(),
-        ))
+    fn binary_to_record_batch(&self, data: &[u8], schema: &SchemaRef) -> Result<RecordBatch> {
+        // For now, implement a simple header-based format or defer to JSON
+        // Arrow IPC parsing requires additional features
+        // As a workaround, convert to JSON if possible or return error
+        
+        // Try to interpret as UTF-8 JSON first
+        if let Ok(json_str) = std::str::from_utf8(data) {
+            self.json_to_record_batch(json_str, schema)
+        } else {
+            Err(SourceError::SerializationError(
+                "Binary data format not supported - only UTF-8 JSON or Arrow IPC is supported".to_string(),
+            ))
+        }
     }
 }
 
@@ -147,10 +240,11 @@ impl DataSource for WebSocketSource {
         self.schema.clone()
     }
 
-    fn stream(&self) -> Pin<Box<dyn Stream<Item = Result<RecordBatch>> + Send>> {
+    fn stream(&self) -> Pin<Box<dyn Stream<Item = Result<RecordBatch>> + Send + '_>> {
         let url = self.config.url.clone();
         let reconnect_policy = self.config.reconnect_policy.clone();
         let connected = self.connected.clone();
+        let schema = self.schema.clone();
 
         let s = stream! {
             let mut retry_count = 0;
@@ -170,10 +264,17 @@ impl DataSource for WebSocketSource {
 
                         while let Some(msg_result) = read.next().await {
                             match msg_result {
-                                Ok(_msg) => {
+                                Ok(msg) => {
                                     // Parse message to RecordBatch
-                                    // TODO: Implement actual parsing
-                                    debug!("Received WebSocket message");
+                                    match self.parse_message(msg, &schema) {
+                                        Ok(batch) => {
+                                            yield Ok(batch);
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to parse message: {}", e);
+                                            debug!("Continuing despite parse error");
+                                        }
+                                    }
                                 }
                                 Err(e) => {
                                     error!("WebSocket read error: {}", e);

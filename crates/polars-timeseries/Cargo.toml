@@ -1,0 +1,35 @@
+[package]
+name = "polars-timeseries"
+version = "0.1.0"
+edition = "2021"
+authors = ["Melvin Alvarez <melvin@polaroid.io>"]
+description = "Time-series extensions for Polars - TWAP, VWAP, multi-frequency resampling for trading workflows"
+license = "MIT"
+repository = "https://github.com/ThotDjehuty/polaroid"
+keywords = ["polars", "timeseries", "trading", "finance", "vwap"]
+categories = ["data-structures", "finance", "algorithms"]
+
+[lib]
+name = "polars_timeseries"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+polars = { version = "0.45", features = ["lazy", "temporal", "dtype-full", "performant"] }
+thiserror = "2.0"
+chrono = "0.4"
+parking_lot = "0.12"
+
+# Python bindings (optional) - version must match workspace
+pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.13"
+
+[features]
+default = []
+python = ["pyo3"]
+
+[[bench]]
+name = "timeseries_benchmark"
+harness = false

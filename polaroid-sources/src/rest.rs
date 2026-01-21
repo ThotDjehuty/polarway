@@ -10,6 +10,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 
@@ -173,12 +174,94 @@ impl RestApiSource {
         Ok(current)
     }
 
-    fn json_to_record_batch(&self, _json: &serde_json::Value) -> Result<RecordBatch> {
-        // TODO: Implement JSON array to RecordBatch conversion
-        // This requires parsing JSON according to schema
-        Err(SourceError::SerializationError(
-            "JSON to RecordBatch conversion not yet implemented".to_string(),
-        ))
+    fn json_to_record_batch(&self, json: &serde_json::Value) -> Result<RecordBatch> {
+        use arrow::array::{ArrayRef, Int64Array, Float64Array, StringArray};
+        
+        // Handle array of objects (typical API response)
+        let rows = match json {
+            serde_json::Value::Array(arr) => arr,
+            _ => return Err(SourceError::SerializationError(
+                "Expected JSON array for data conversion".to_string(),
+            )),
+        };
+
+        if rows.is_empty() {
+            return Err(SourceError::SerializationError(
+                "Empty data array".to_string(),
+            ));
+        }
+
+        // Get field names from schema
+        let fields = self.schema.fields();
+        let mut arrays: Vec<ArrayRef> = Vec::new();
+
+        // Build arrays for each field
+        for field in fields {
+            let field_name = field.name();
+            let data_type = field.data_type();
+
+            match data_type {
+                arrow::datatypes::DataType::Int64 => {
+                    let mut values: Vec<i64> = Vec::new();
+                    for row in rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(i) = val.as_i64() {
+                                    values.push(i);
+                                } else {
+                                    values.push(0);
+                                }
+                            } else {
+                                values.push(0);
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(Int64Array::from(values)));
+                }
+                arrow::datatypes::DataType::Float64 => {
+                    let mut values: Vec<f64> = Vec::new();
+                    for row in rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(f) = val.as_f64() {
+                                    values.push(f);
+                                } else {
+                                    values.push(0.0);
+                                }
+                            } else {
+                                values.push(0.0);
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(Float64Array::from(values)));
+                }
+                arrow::datatypes::DataType::Utf8 => {
+                    let mut values: Vec<String> = Vec::new();
+                    for row in rows {
+                        if let Some(obj) = row.as_object() {
+                            if let Some(val) = obj.get(field_name) {
+                                if let Some(s) = val.as_str() {
+                                    values.push(s.to_string());
+                                } else {
+                                    values.push(val.to_string());
+                                }
+                            } else {
+                                values.push(String::new());
+                            }
+                        }
+                    }
+                    arrays.push(Arc::new(StringArray::from(values)));
+                }
+                _ => {
+                    return Err(SourceError::SerializationError(
+                        format!("Unsupported data type for field {}: {:?}", field_name, data_type),
+                    ));
+                }
+            }
+        }
+
+        RecordBatch::try_new(self.schema.clone(), arrays)
+            .map_err(|e| SourceError::SerializationError(format!("Failed to create record batch: {}", e)))
     }
 
     fn extract_next_cursor(&self, json: &serde_json::Value, cursor_field: &str) -> Option<String> {

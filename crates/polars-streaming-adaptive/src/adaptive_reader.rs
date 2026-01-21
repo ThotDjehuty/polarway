@@ -186,7 +186,7 @@ mod tests {
     use super::*;
     use polars::prelude::*;
     use std::path::PathBuf;
-    use tempfile::NamedTempFile;
+    use uuid::Uuid;
 
     fn create_test_parquet(rows: usize) -> PathBuf {
         let df = DataFrame::new(vec![
@@ -198,9 +198,11 @@ mod tests {
         ])
         .unwrap();
 
-        // Create a temp file with proper persistence
+        // Create a temp file with UUID-based naming
         let temp_dir = std::env::temp_dir();
-        let path = temp_dir.join(format!("test_adaptive_{}.parquet", std::process::id()));
+        let path = temp_dir.join(format!("test_adaptive_{}_{}.parquet", 
+            std::process::id(), 
+            Uuid::new_v4()));
 
         ParquetWriter::new(std::fs::File::create(&path).unwrap())
             .finish(&mut df.clone())

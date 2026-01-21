@@ -50,8 +50,8 @@ impl Connection {
             return true;
         }
 
-        // Check idle timeout
-        if now.duration_since(self.last_used).as_secs() > config.idle_timeout_secs {
+        // Check idle timeout (>= for 0 timeout)
+        if config.idle_timeout_secs > 0 && now.duration_since(self.last_used).as_secs() >= config.idle_timeout_secs {
             return true;
         }
 
@@ -162,7 +162,7 @@ mod tests {
             max_lifetime_secs: 3600,
         };
 
-        let mut conn = Connection::new("http://localhost:8080".to_string());
+        let conn = Connection::new("http://localhost:8080".to_string());
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         assert!(conn.is_expired(&config));
