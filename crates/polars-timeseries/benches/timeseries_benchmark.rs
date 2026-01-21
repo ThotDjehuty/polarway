@@ -56,9 +56,8 @@ fn bench_twap(c: &mut Criterion) {
         b.iter(|| {
             twap(
                 black_box(&df_small),
-                black_box("timestamp"),
                 black_box("close"),
-                black_box("5m"),
+                black_box(10),
             )
         })
     });
@@ -67,9 +66,8 @@ fn bench_twap(c: &mut Criterion) {
         b.iter(|| {
             twap(
                 black_box(&df_large),
-                black_box("timestamp"),
                 black_box("close"),
-                black_box("5m"),
+                black_box(10),
             )
         })
     });

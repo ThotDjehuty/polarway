@@ -1,7 +1,6 @@
 //! Query planning and distribution
 
-use crate::error::{DistributedError, Result};
-use datafusion::logical_expr::LogicalPlan;
+use crate::error::Result;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

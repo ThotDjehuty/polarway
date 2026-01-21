@@ -184,7 +184,6 @@ impl Drop for AdaptiveBatchIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use polars::prelude::*;
     use std::path::PathBuf;
     use uuid::Uuid;
 

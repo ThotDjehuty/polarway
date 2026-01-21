@@ -141,7 +141,6 @@ pub fn from_glob(pattern: &str) -> Result<ParallelStreamReader> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use polars::prelude::*;
     use std::path::PathBuf;
     use tempfile::TempDir;
 

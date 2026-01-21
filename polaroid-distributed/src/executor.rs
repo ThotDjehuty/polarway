@@ -1,12 +1,12 @@
 //! Distributed query executor
 
 use crate::error::{DistributedError, Result};
-use crate::query_planner::{ExecutionStage, QueryPlan};
+use crate::query_planner::QueryPlan;
 use arrow::record_batch::RecordBatch;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
 pub struct ExecutorConfig {
@@ -29,7 +29,7 @@ impl Default for ExecutorConfig {
 }
 
 pub struct DistributedExecutor {
-    config: ExecutorConfig,
+    _config: ExecutorConfig,
     workers: Arc<RwLock<HashMap<String, WorkerInfo>>>,
 }
 
@@ -45,7 +45,7 @@ pub struct WorkerInfo {
 impl DistributedExecutor {
     pub fn new(config: ExecutorConfig) -> Self {
         Self {
-            config,
+            _config: config,
             workers: Arc::new(RwLock::new(HashMap::new())),
         }
     }

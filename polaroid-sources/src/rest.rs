@@ -275,7 +275,7 @@ impl RestApiSource {
         current.as_str().map(|s| s.to_string())
     }
 
-    fn extract_link_header(&self, headers: &reqwest::header::HeaderMap, rel: &str) -> Option<String> {
+    fn _extract_link_header(&self, headers: &reqwest::header::HeaderMap, rel: &str) -> Option<String> {
         // Parse Link header (RFC 5988)
         // Example: Link: <https://api.example.com/data?page=2>; rel="next"
         let link_header = headers.get("Link")?.to_str().ok()?;

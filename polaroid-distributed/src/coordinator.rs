@@ -100,7 +100,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_coordinator_creation() {
-        let config = CoordinatorConfig::default();
+        let _config = CoordinatorConfig::default();
         // Note: This will fail without etcd running
         // let coordinator = Coordinator::new(config).await;
         // assert!(coordinator.is_ok());

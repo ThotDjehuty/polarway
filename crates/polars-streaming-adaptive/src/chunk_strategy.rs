@@ -104,7 +104,7 @@ mod tests {
         let memory_manager = MemoryManager::new().unwrap();
         let mut strategy = AdaptiveChunkStrategy::new(memory_manager);
 
-        let initial_size = strategy.current_chunk_size;
+        let _initial_size = strategy.current_chunk_size;
 
         // Simulate low memory - should reduce
         strategy.adjust(1_000_000, 1000);

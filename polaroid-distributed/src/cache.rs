@@ -1,6 +1,5 @@
 //! Multi-level caching system
 
-use crate::error::{DistributedError, Result};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -66,7 +65,7 @@ impl Default for CacheConfig {
 #[derive(Clone)]
 pub struct CacheLayer<V: Clone + Send + Sync + 'static> {
     cache: Arc<Cache<CacheKey, V>>,
-    config: CacheConfig,
+    _config: CacheConfig,
 }
 
 impl<V: Clone + Send + Sync + 'static> CacheLayer<V> {
@@ -79,7 +78,7 @@ impl<V: Clone + Send + Sync + 'static> CacheLayer<V> {
 
         Self {
             cache: Arc::new(cache),
-            config,
+            _config: config,
         }
     }
 
