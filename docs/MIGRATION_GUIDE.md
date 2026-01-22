@@ -2,6 +2,162 @@
 
 A comprehensive guide to migrate your existing Polars code to Polaroid.
 
+## 📋 Table of Contents
+
+1. [Why Migrate](#-why-migrate)
+2. [Version-Specific Migrations](#-version-specific-migrations)
+   - [v0.53.0: Adaptive Streaming Sources](#v0530-adaptive-streaming-sources-january-2026)
+3. [General Polars → Polaroid Migration](#-compatibility-overview)
+
+---
+
+## 🆕 v0.53.0: Adaptive Streaming Sources (January 2026)
+
+### What's New
+
+Polaroid v0.53.0 introduces **Generic Adaptive Streaming Sources** with support for:
+- **CSV** with adaptive chunking
+- **Cloud Storage**: S3, Azure Blob, Google Cloud Storage  
+- **Databases**: DynamoDB, PostgreSQL, MySQL
+- **Streaming**: Apache Kafka
+- **HTTP/REST APIs** with automatic pagination
+- **Filesystem** with memory mapping
+
+### Quick Migration
+
+#### From Standard Polars CSV
+
+**Before:**
+```python
+import polars as pl
+df = pl.read_csv("large.csv")  # Loads entire file into memory
+```
+
+**After (v0.53.0):**
+```python
+import polaroid as pl
+
+# Automatic memory management
+df = pl.adaptive_scan_csv("large.csv", memory_limit="2GB")
+
+# Or streaming
+from polaroid.streaming import CsvSource
+source = CsvSource("large.csv", memory_limit="2GB")
+for chunk in source:
+    process(chunk)
+```
+
+#### From Manual S3 Downloads
+
+**Before:**
+```python
+import boto3
+s3 = boto3.client('s3')
+s3.download_file('bucket', 'data.parquet', '/tmp/data.parquet')
+df = pl.read_parquet('/tmp/data.parquet')
+```
+
+**After (v0.53.0):**
+```python
+from polaroid.streaming import S3Source
+
+# Stream directly from S3
+source = S3Source(
+    "s3://bucket/data.parquet",
+    memory_limit="4GB"
+)
+for chunk in source:
+    process(chunk)
+```
+
+#### From Manual API Pagination
+
+**Before:**
+```python
+import requests
+data = []
+page = 1
+while True:
+    r = requests.get(f"https://api.example.com/data?page={page}")
+    if not r.json(): break
+    data.extend(r.json())
+    page += 1
+df = pl.DataFrame(data)
+```
+
+**After (v0.53.0):**
+```python
+from polaroid.streaming import HttpSource
+
+# Automatic pagination
+source = HttpSource(
+    "https://api.example.com/data",
+    paginated=True,
+    memory_limit="1GB"
+)
+for chunk in source:
+    process(chunk)
+```
+
+### Configuration
+
+Create `polaroid.toml` for default settings:
+
+```toml
+[sources.csv]
+default_memory_limit = "2GB"
+default_chunk_size = 10000
+
+[sources.s3]
+region = "us-east-1"
+default_memory_limit = "4GB"
+
+[sources.http]
+timeout = 30
+retry_attempts = 3
+```
+
+### Memory Recommendations
+
+| Environment | Memory Limit | Chunk Size |
+|-------------|--------------|------------|
+| Laptop (8GB) | `"2GB"` | 10,000 |
+| Desktop (16GB) | `"4GB"` | 50,000 |
+| Server (32GB) | `"8GB"` | 100,000 |
+| Azure B1s (1GB) | `"400MB"` | 5,000 |
+| Azure B2s (4GB) | `"1.5GB"` | 20,000 |
+
+### Custom Sources (Rust)
+
+```rust
+use polars_streaming_adaptive::sources::*;
+use async_trait::async_trait;
+
+#[derive(Debug)]
+struct MySqlSource { /* ... */ }
+
+#[async_trait]
+impl StreamingSource for MySqlSource {
+    async fn metadata(&self) -> SourceResult<SourceMetadata> { /* ... */ }
+    async fn read_chunk(&mut self) -> SourceResult<Option<DataFrame>> { /* ... */ }
+    fn stats(&self) -> StreamingStats { /* ... */ }
+    async fn reset(&mut self) -> SourceResult<()> { /* ... */ }
+    fn has_more(&self) -> bool { /* ... */ }
+}
+
+// Register
+let mut registry = SourceRegistry::new();
+registry.register("mysql", Box::new(MySqlSourceFactory));
+```
+
+### See Also
+
+- [API Reference](API_REFERENCE.md) - Complete API documentation
+- [User Guide](USER_GUIDE.md) - Comprehensive usage guide
+- [Benchmarks](../notebooks/adaptive_streaming_benchmarks.ipynb) - Performance comparisons
+
+---
+
 ## 🎯 Why Migrate?
 
 ### Performance Improvements
