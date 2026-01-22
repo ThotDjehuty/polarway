@@ -1,0 +1,186 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security checks daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive scan
+      
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # Optional
+
+      - name: Check for hardcoded credentials
+        run: |
+          echo "Scanning for hardcoded credentials..."
+          
+          # Check for common credential patterns
+          if grep -r -E "(password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key)\s*=\s*['\"](?!.*\$\{)[^'\"]{8,}" \
+             --exclude-dir=.git \
+             --exclude-dir=node_modules \
+             --exclude-dir=venv \
+             --exclude-dir=.venv \
+             --exclude-dir=target \
+             --exclude="*.lock" \
+             --exclude="*.sum" . ; then
+            echo "❌ Found potential hardcoded credentials!"
+            exit 1
+          fi
+          
+          echo "✅ No hardcoded credentials detected"
+
+      - name: Check for .env files
+        run: |
+          echo "Checking for .env files..."
+          
+          if find . -name ".env*" -not -path "*/node_modules/*" -not -path "*/.git/*" | grep -q .; then
+            echo "❌ Found .env files in repository!"
+            find . -name ".env*" -not -path "*/node_modules/*" -not -path "*/.git/*"
+            exit 1
+          fi
+          
+          echo "✅ No .env files found"
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+      
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  rust-audit:
+    name: Rust Cargo Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run cargo audit
+        run: cargo audit
+        continue-on-error: true  # Don't fail on advisories, just report
+
+  python-safety:
+    name: Python Safety Check
+    runs-on: ubuntu-latest
+    if: hashFiles('requirements.txt') != '' || hashFiles('pyproject.toml') != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install safety
+        run: pip install safety
+      
+      - name: Run safety check
+        run: |
+          if [ -f requirements.txt ]; then
+            safety check -r requirements.txt
+          fi
+        continue-on-error: true
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python', 'rust' ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  license-compliance:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Check Rust licenses
+        run: |
+          cargo install cargo-license
+          cargo license --json > licenses.json
+          
+          # Check for non-permissive licenses
+          if jq -r '.[] | select(.license | test("GPL|AGPL|SSPL") ) | .name' licenses.json | grep -q .; then
+            echo "❌ Found non-permissive licenses!"
+            jq -r '.[] | select(.license | test("GPL|AGPL|SSPL") ) | "\(.name): \(.license)"' licenses.json
+            exit 1
+          fi
+          
+          echo "✅ All licenses are permissive (MIT, Apache-2.0, BSD)"
+        continue-on-error: true
+
+  security-summary:
+    name: Security Summary
+    needs: [secret-scan, dependency-scan, rust-audit, python-safety, codeql-analysis, license-compliance]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check security status
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Secret Scanning: ${{ needs.secret-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Rust Audit: ${{ needs.rust-audit.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Python Safety: ${{ needs.python-safety.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- CodeQL Analysis: ${{ needs.codeql-analysis.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- License Compliance: ${{ needs.license-compliance.result }}" >> $GITHUB_STEP_SUMMARY
