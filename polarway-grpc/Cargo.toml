@@ -1,11 +1,11 @@
 [package]
-name = "polaroid-grpc"
+name = "polarway-grpc"
 version = "0.1.0"
 edition = "2021"
-authors = ["Polaroid Contributors"]
+authors = ["Polarway Contributors"]
 license = "MIT"
-description = "gRPC server for Polaroid DataFrame engine"
-repository = "https://github.com/polaroid-rs/polaroid"
+description = "gRPC server for Polarway Railway-Oriented Data Processing"
+repository = "https://github.com/ThotDjehuty/polarway"
 
 [dependencies]
 # Core Polars/Arrow (disable PyO3 to avoid dylib dependency)
@@ -79,20 +79,17 @@ tower = "0.5"
 http-body-util = "0.1"
 
 [features]
-default = ["storage"]
+default = ["storage", "streaming", "timeseries", "network-sources"]
 storage = [] # Enable storage layer (Parquet + DuckDB + Cache)
-
-[[bin]]
-name = "polaroid-grpc"
-path = "src/main.rs"
-
-[lib]
-name = "polaroid_grpc"
-path = "src/lib.rs"
-
-[features]
-default = ["streaming", "timeseries", "network-sources"]
 streaming = []
 timeseries = []
 network-sources = []
-full = ["streaming", "timeseries", "network-sources"]
+full = ["storage", "streaming", "timeseries", "network-sources"]
+
+[[bin]]
+name = "polarway-grpc"
+path = "src/main.rs"
+
+[lib]
+name = "polarway_grpc"
+path = "src/lib.rs"
