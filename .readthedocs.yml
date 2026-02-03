@@ -11,10 +11,9 @@ build:
     post_create_environment:
       # Install Rust toolchain for building storage modules
       - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-      - echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
     post_install:
       # Build Rust storage modules documentation
-      - source $HOME/.cargo/env
+      - . $HOME/.cargo/env
       - cd polarway-grpc && cargo doc --no-deps
 
 sphinx:
