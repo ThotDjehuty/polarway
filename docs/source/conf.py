@@ -1,4 +1,4 @@
-# Polaroid Documentation
+# Polarway Documentation
 
 import os
 import sys
@@ -7,9 +7,9 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 
 # Project information
-project = 'Polaroid'
-copyright = '2026, Polaroid Contributors'
-author = 'Polaroid Contributors'
+project = 'Polarway'
+copyright = '2026, Polarway Contributors'
+author = 'Polarway Contributors'
 release = '0.53.0'
 version = '0.53'
 

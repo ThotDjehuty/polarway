@@ -1,4 +1,4 @@
-//! Generic storage backend abstraction for Polaroid
+//! Generic storage backend abstraction for Polarway
 //!
 //! This module provides a trait-based storage layer that supports multiple backends:
 //! - Parquet: Cold storage with high compression (zstd level 19)
@@ -65,7 +65,7 @@ pub trait StorageBackend: Send + Sync {
 
 /// Hybrid storage combining cache, cold storage, and SQL analytics
 ///
-/// This is the recommended storage backend for Polaroid, providing:
+/// This is the recommended storage backend for Polarway, providing:
 /// - Fast cache lookups (LRU)
 /// - Compressed cold storage (Parquet with zstd)
 /// - SQL analytics (DuckDB)

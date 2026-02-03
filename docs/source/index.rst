@@ -1,11 +1,11 @@
-.. Polaroid documentation master file
+.. Polarway documentation master file
 
-📸 Polaroid Documentation
+📸 Polarway Documentation
 ==========================
 
 **High-Performance DataFrame Engine with gRPC Streaming and Hybrid Storage**
 
-Polaroid is a fast DataFrame library built on Polars, featuring a gRPC client-server architecture
+Polarway is a fast DataFrame library built on Polars, featuring a gRPC client-server architecture
 with hybrid storage (Parquet + DuckDB + Cache) for optimal performance and cost efficiency.
 
 .. image:: https://img.shields.io/badge/License-MIT-yellow.svg
@@ -37,14 +37,14 @@ Quick Start
 
 .. code-block:: bash
 
-   # Install Polaroid Python client
-   pip install polaroid-py
+   # Install Polarway Python client
+   pip install polarway-py
 
-   # Start Polaroid server
-   docker run -p 50051:50051 polaroid/polaroid-grpc
+   # Start Polarway server
+   docker run -p 50051:50051 polarway/polarway-grpc
 
    # Use in Python
-   import polaroid as pd
+   import polarway as pd
 
    # Connect to server
    client = pd.connect("localhost:50051")
@@ -61,7 +61,7 @@ Quick Start
 Storage Architecture
 -------------------
 
-Polaroid v0.53.0 introduces a **hybrid storage layer** replacing QuestDB:
+Polarway v0.53.0 introduces a **hybrid storage layer** replacing QuestDB:
 
 .. code-block:: text
 

@@ -2,7 +2,7 @@
 
 ## System Architecture
 
-Polaroid uses a **client-server architecture** with gRPC for communication and hybrid storage for persistence:
+Polarway uses a **client-server architecture** with gRPC for communication and hybrid storage for persistence:
 
 ```text
 ┌───────────────────────────────────────────────────────────────────┐
@@ -23,7 +23,7 @@ Polaroid uses a **client-server architecture** with gRPC for communication and h
 │                       Server Layer                                │
 │                                                                   │
 │  ┌──────────────────────────────────────────────────────────┐    │
-│  │              Polaroid gRPC Server                        │    │
+│  │              Polarway gRPC Server                        │    │
 │  │                                                           │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │    │
 │  │  │  Handle     │  │  Service    │  │   HTTP      │     │    │
@@ -58,9 +58,9 @@ Polaroid uses a **client-server architecture** with gRPC for communication and h
 ### Client Layer
 
 **Supported Languages**:
-- Python (polaroid-py)
-- Rust (polaroid-rs)
-- Go (polaroid-go)
+- Python (polarway-py)
+- Rust (polarway-rs)
+- Go (polarway-go)
 - Any gRPC-capable language
 
 **Features**:
@@ -97,7 +97,7 @@ Implements gRPC service definition:
 
 ```rust
 #[tonic::async_trait]
-impl PolaroidService for PolaroidDataFrameService {
+impl PolarwayService for PolarwayDataFrameService {
     async fn create_from_csv(...) -> Result<Response<HandleResponse>, Status>;
     async fn filter(...) -> Result<Response<HandleResponse>, Status>;
     async fn select(...) -> Result<Response<HandleResponse>, Status>;
@@ -299,7 +299,7 @@ Cache Full?
 
 ## Error Handling
 
-Polaroid uses **Result/Option monads** for explicit error handling:
+Polarway uses **Result/Option monads** for explicit error handling:
 
 ```rust
 // Result<T, E>: Operation may fail
@@ -378,21 +378,21 @@ Parquet with zstd level 19:
 
 ```text
 # Cache metrics
-polaroid_cache_hits_total
-polaroid_cache_misses_total
-polaroid_cache_hit_rate
+polarway_cache_hits_total
+polarway_cache_misses_total
+polarway_cache_hit_rate
 
 # Storage metrics
-polaroid_storage_size_bytes
-polaroid_storage_compression_ratio
+polarway_storage_size_bytes
+polarway_storage_compression_ratio
 
 # Request metrics
-polaroid_requests_total{operation="filter"}
-polaroid_request_duration_seconds{operation="filter"}
+polarway_requests_total{operation="filter"}
+polarway_request_duration_seconds{operation="filter"}
 
 # Handle metrics
-polaroid_active_handles_total
-polaroid_handles_created_total
+polarway_active_handles_total
+polarway_handles_created_total
 ```
 
 ### Logging (tracing)
@@ -417,15 +417,15 @@ docker run -d \
   -v /data/cold:/data/cold \
   -e STORAGE_PATH=/data/cold \
   -e CACHE_SIZE_GB=2.0 \
-  polaroid/polaroid-grpc:v0.53.0
+  polarway/polarway-grpc:v0.53.0
 ```
 
 ### Docker Compose
 
 ```yaml
 services:
-  polaroid:
-    image: polaroid/polaroid-grpc:v0.53.0
+  polarway:
+    image: polarway/polarway-grpc:v0.53.0
     ports:
       - "50051:50051"
       - "8080:8080"
@@ -443,14 +443,14 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: polaroid
+  name: polarway
 spec:
   replicas: 3
   template:
     spec:
       containers:
-      - name: polaroid
-        image: polaroid/polaroid-grpc:v0.53.0
+      - name: polarway
+        image: polarway/polarway-grpc:v0.53.0
         ports:
         - containerPort: 50051
         volumeMounts:
@@ -459,7 +459,7 @@ spec:
       volumes:
       - name: storage
         persistentVolumeClaim:
-          claimName: polaroid-storage
+          claimName: polarway-storage
 ```
 
 ## References

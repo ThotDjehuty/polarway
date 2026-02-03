@@ -1,4 +1,4 @@
-// Storage layer abstraction for Polaroid
+// Storage layer abstraction for Polarway
 // Supports: Parquet, DuckDB, In-Memory cache
 
 pub mod parquet_backend;

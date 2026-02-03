@@ -2,7 +2,7 @@
 
 ## Overview
 
-Polaroid v0.53.0 introduces a **hybrid storage layer** that combines three backends for optimal performance and cost efficiency:
+Polarway v0.53.0 introduces a **hybrid storage layer** that combines three backends for optimal performance and cost efficiency:
 
 1. **Cache Backend** (LRU, RAM): Hot data, O(1) access
 2. **Parquet Backend** (Cold, Disk): High compression (zstd level 19)
@@ -20,7 +20,7 @@ This replaces the previous QuestDB integration, providing:
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Application Layer                        │
 │                                                                 │
-│  Python/Rust Client ◄──► Polaroid gRPC Server                  │
+│  Python/Rust Client ◄──► Polarway gRPC Server                  │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
@@ -70,7 +70,7 @@ The hybrid storage implements a **smart loading strategy**:
 
 **Usage**:
 ```rust
-use polaroid_grpc::CacheBackend;
+use polarway_grpc::CacheBackend;
 
 let cache = CacheBackend::new(2.0); // 2GB cache
 
@@ -105,7 +105,7 @@ println!("Hit rate: {:.1}%", stats.cache_hits as f64 / (stats.cache_hits + stats
 
 **Usage**:
 ```rust
-use polaroid_grpc::ParquetBackend;
+use polarway_grpc::ParquetBackend;
 
 let backend = ParquetBackend::new("/data/cold")?;
 
@@ -132,7 +132,7 @@ println!("Compression: {:.1}×", stats.compression_ratio);
 
 **Usage**:
 ```rust
-use polaroid_grpc::DuckDBBackend;
+use polarway_grpc::DuckDBBackend;
 
 let duckdb = DuckDBBackend::new(":memory:")?;
 
@@ -154,7 +154,7 @@ let result = duckdb.query(r#"
 The **HybridStorage** combines all three backends:
 
 ```rust
-use polaroid_grpc::HybridStorage;
+use polarway_grpc::HybridStorage;
 
 let storage = HybridStorage::new(
     "/data/cold".to_string(),   // Parquet path
@@ -184,7 +184,7 @@ println!("Compression: {:.1}×", stats.compression_ratio);
 The Python client provides a simplified interface:
 
 ```python
-from polaroid import StorageClient
+from polarway import StorageClient
 
 # Connect
 client = StorageClient(
@@ -277,8 +277,8 @@ from questdb.ingress import Sender
 sender = Sender(host='localhost', port=9009)
 sender.dataframe(df, table_name='trades')
 
-# New (Polaroid storage)
-from polaroid import StorageClient
+# New (Polarway storage)
+from polarway import StorageClient
 client = StorageClient(parquet_path="/data/cold")
 client.store("trades_20260203", df)
 ```
