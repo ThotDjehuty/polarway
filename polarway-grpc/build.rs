@@ -4,11 +4,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build_server(true)
         .build_client(true)
         .compile(
-            &["../proto/polaroid.proto"],
+            &["../proto/polarway.proto"],
             &["../proto"],
         )?;
     
-    println!("cargo:rerun-if-changed=../proto/polaroid.proto");
+    println!("cargo:rerun-if-changed=../proto/polarway.proto");
     
     Ok(())
 }
