@@ -1,0 +1,20 @@
+# Documentation build requirements for ReadTheDocs
+
+# Sphinx and theme
+sphinx>=7.2.0
+sphinx-rtd-theme>=2.0.0
+myst-parser>=2.0.0
+
+# Extensions
+sphinx-autodoc-typehints>=1.25.0
+sphinx-copybutton>=0.5.2
+sphinxcontrib-mermaid>=0.9.2
+
+# Python dependencies for examples
+polars>=0.20.0
+pyarrow>=14.0.0
+duckdb>=0.10.0
+
+# Utilities
+recommonmark>=0.7.1
+markdown>=3.5.0
