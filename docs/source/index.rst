@@ -1,7 +1,7 @@
 .. Polarway documentation master file
 
-📸 Polarway Documentation
-==========================
+Polarway Documentation
+======================
 
 **High-Performance DataFrame Engine with gRPC Streaming and Hybrid Storage**
 

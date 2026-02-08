@@ -44,7 +44,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # HTML output
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
-html_logo = None
+html_logo = '_static/polarway-logo.png'
 html_favicon = None
 
 html_theme_options = {
