@@ -118,6 +118,12 @@ Table of Contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: Lakehouse
+
+   lakehouse
+
+.. toctree::
+   :maxdepth: 2
    :caption: User Guide
 
    user-guide/concepts/index
