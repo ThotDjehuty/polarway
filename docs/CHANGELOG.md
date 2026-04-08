@@ -5,6 +5,30 @@ All notable changes to Polarway will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-29
+
+### 🎉 Major Release — Distributed Horizons
+
+#### ✨ Added
+- **`polarway-bus` v0.1.0**: Generic `EventBus<T>` crate — broadcast fan-out, filtered subscribers, sync drain, async recv. 10 unit + 2 doc-tests passing.
+- **Distributed Implementation Plan v2**: Rewrote `DISTRIBUTED_IMPLEMENTATION_PLAN.md` with retained solutions — EventBus as coordination layer, Lakehouse as Phase 2+ state store, `BusConnector` trait for pluggable message brokers.
+- **Connector architecture**: `BusConnector` trait design for Redis, RabbitMQ, Kafka adapters. Contributor guide with NATS example.
+- **Lakehouse ↔ Distributed integration**: `DeltaStore` mapped as `StateStore` backend — ACID handles, time-travel versioning, vacuum GC, z-order optimization.
+- **Release notes**: `RELEASE_NOTES_v2.0.0.md` with full feature overview and roadmap.
+
+#### 🧹 Changed
+- **Repo cleanup**: Removed deprecated docs (README_OLD.md, README_LEGACY.md), upstream Polars-only directories (polars-cloud, polars-on-premises), duplicate guides, one-time migration scripts, and build artifacts.
+- **Workspace Cargo.toml**: `polarway-bus` added to workspace members.
+- Superseded `DISTRIBUTED_IMPLEMENTATION_PLAN_v1.md` (original plan archived).
+
+#### 📋 Planned (v2.1.0)
+- `polarway-connectors` crate (Redis, RabbitMQ, Kafka)
+- `StateStore` trait implementation in `polarway-grpc`
+- `WorkerEvent` protocol for inter-worker coordination
+- Arrow 54+ upgrade to unblock `polarway-distributed`
+
+---
+
 ## [1.0.0] - 2026-02-26
 
 ### 🎉 First Stable Release
