@@ -74,7 +74,7 @@ impl ParquetBackend {
     fn sanitize_key(&self, key: &str) -> Result<String, Box<dyn Error>> {
         // Replace dangerous characters
         let sanitized = key
-            .replace(['/', '\\', '..'], "_")
+            .replace(['.', '/', '\\'], "_")
             .replace(' ', "_");
 
         if sanitized.is_empty() {
