@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polarway"
-version = "1.0.0"
+version = "2.0.0"
 description = "High-performance Railway-Oriented DataFrame engine with gRPC streaming and Lakehouse support"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -31,14 +31,12 @@ dependencies = [
     "protobuf>=4.25.0",
 ]
 
-[project.optional-dependencies.lakehouse]
+[project.optional-dependencies]
 lakehouse = [
     "deltalake>=0.18.0",
     "argon2-cffi>=23.1.0",
     "PyJWT>=2.8.0",
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -49,7 +47,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/ThotDjehuty/polarway"
-Documentation = "https://docs.polarway.rs"
+Documentation = "https://polarway.readthedocs.io"
 Repository = "https://github.com/ThotDjehuty/polarway"
 Issues = "https://github.com/ThotDjehuty/polarway/issues"
 

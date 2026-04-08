@@ -93,12 +93,11 @@ Polarway v1.0.0 establishes the first stable, production-ready API for the Railw
 
 ### ⚠️ Known Issues
 - **Rust build conflict**: `arrow-arith 53.4.0` introduced a `quarter()` ambiguity with `chrono >= 0.4.39` (chrono added `Datelike::quarter()` which conflicts with `ChronoDateExt::quarter()`). Fix: upgrade arrow to 54+ or use a workspace-level `[patch.crates-io]`. This affects compilation but not the Python package (which uses grpcio, not the Rust gRPC binary).
-- **crates.io publication deferred**: `polarway-grpc` uses path dependencies on local Polars fork crates (`path = "../crates/polars"`). crates.io requires all dependencies to come from crates.io. Architecture change required in v1.1.0.
 - **pyarrow compatibility**: `pyarrow >= 21` has a binary incompatibility with `_azurefs` when `deltalake` is installed. Use `pyarrow == 18.1.0` for the Lakehouse optional dependency.
 
 ### 🔗 Links
-- PyPI: https://pypi.org/project/polarway/ (release pending)
-- crates.io: deferred to v1.1.0 (path dependency architecture change required)
+- PyPI: https://pypi.org/project/polarway/2.0.0/
+- crates.io: [`polarway-bus`](https://crates.io/crates/polarway-bus) · [`polarway-lakehouse`](https://crates.io/crates/polarway-lakehouse) · [`polarway-sources`](https://crates.io/crates/polarway-sources) · [`polarway-grpc`](https://crates.io/crates/polarway-grpc)
 - ReadTheDocs: https://polarway.readthedocs.io
 - Repository: https://github.com/ThotDjehuty/polarway
 

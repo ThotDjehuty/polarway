@@ -109,17 +109,21 @@ The [DISTRIBUTED_IMPLEMENTATION_PLAN.md](../docs/DISTRIBUTED_IMPLEMENTATION_PLAN
 ## ⚠️ Known Issues
 
 - **`polarway-distributed` excluded**: `arrow-arith@53.4.0` × `chrono@0.4.39+` conflict. Fix: upgrade arrow to 54+ when DataFusion supports it.
-- **crates.io publication deferred**: path dependencies on local Polars fork prevent `cargo publish`. Architecture change planned for v2.1.0.
 - **pyarrow compatibility**: `pyarrow >= 21` binary incompatibility with `deltalake`. Use `pyarrow == 18.1.0`.
 
 ---
+
+## ✅ Published Packages
+
+- **crates.io**: [`polarway-bus`](https://crates.io/crates/polarway-bus), [`polarway-lakehouse`](https://crates.io/crates/polarway-lakehouse), [`polarway-sources`](https://crates.io/crates/polarway-sources), [`polarway-grpc`](https://crates.io/crates/polarway-grpc)
+- **PyPI**: [`polarway`](https://pypi.org/project/polarway/2.0.0/)
 
 ## 📋 Roadmap (v2.1.0+)
 
 1. **`polarway-connectors` crate** — Redis, RabbitMQ, Kafka `BusConnector` implementations
 2. **`StateStore` trait** — abstract handle storage; `DeltaStore` adapter in `polarway-lakehouse`
 3. **`WorkerEvent` protocol** — `HandleCreated`, `HandleInvalidated`, `WorkerHeartbeat`, `JobAssigned`
-4. **Arrow 54+ upgrade** — unblocks `polarway-distributed` and crates.io publishing
+4. **Arrow 54+ upgrade** — unblocks `polarway-distributed`
 5. **Integration tests** — multi-worker + connector + lakehouse end-to-end
 
 ---
