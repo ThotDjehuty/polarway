@@ -60,7 +60,7 @@ async fn test_append_and_scan() {
     let dir = TempDir::new().unwrap();
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
-    let batch = make_user_batch("u1", "alice", "alice@example.com");
+    let batch = make_user_batch("u1", "bob", "bob@example.com");
     let version = store.append(schema::TABLE_USERS, batch).await.unwrap();
     assert!(version > 0);
 
@@ -75,14 +75,14 @@ async fn test_query_with_predicate() {
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
     // Insert two users
-    let b1 = make_user_batch("u1", "alice", "alice@example.com");
+    let b1 = make_user_batch("u1", "bob", "bob@example.com");
     let b2 = make_user_batch("u2", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, b1).await.unwrap();
     store.append(schema::TABLE_USERS, b2).await.unwrap();
 
-    // Query for alice
+    // Query for bob
     let results = store
-        .query(schema::TABLE_USERS, "username = 'alice'")
+        .query(schema::TABLE_USERS, "username = 'bob'")
         .await
         .unwrap();
     let total: usize = results.iter().map(|b| b.num_rows()).sum();
@@ -102,10 +102,10 @@ async fn test_delete() {
     let dir = TempDir::new().unwrap();
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
-    let batch = make_user_batch("u1", "alice", "alice@example.com");
+    let batch = make_user_batch("u1", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, batch).await.unwrap();
 
-    // Delete alice
+    // Delete bob
     let metrics = store
         .delete(schema::TABLE_USERS, "user_id = 'u1'")
         .await
@@ -124,8 +124,8 @@ async fn test_time_travel_by_version() {
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
     // Version 0: empty table after creation
-    // Version 1: insert alice
-    let b1 = make_user_batch("u1", "alice", "alice@example.com");
+    // Version 1: insert bob
+    let b1 = make_user_batch("u1", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, b1).await.unwrap();
 
     // Version 2: insert bob
@@ -137,7 +137,7 @@ async fn test_time_travel_by_version() {
     let total: usize = current.iter().map(|b| b.num_rows()).sum();
     assert_eq!(total, 2);
 
-    // Version 1: only alice
+    // Version 1: only bob
     let v1 = store.read_version(schema::TABLE_USERS, 1).await.unwrap();
     let total_v1: usize = v1.iter().map(|b| b.num_rows()).sum();
     assert_eq!(total_v1, 1);
@@ -148,7 +148,7 @@ async fn test_history() {
     let dir = TempDir::new().unwrap();
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
-    let b1 = make_user_batch("u1", "alice", "alice@example.com");
+    let b1 = make_user_batch("u1", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, b1).await.unwrap();
 
     let b2 = make_user_batch("u2", "bob", "bob@example.com");
@@ -186,7 +186,7 @@ async fn test_sql_query() {
     let dir = TempDir::new().unwrap();
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
-    let b1 = make_user_batch("u1", "alice", "alice@example.com");
+    let b1 = make_user_batch("u1", "bob", "bob@example.com");
     let b2 = make_user_batch("u2", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, b1).await.unwrap();
     store.append(schema::TABLE_USERS, b2).await.unwrap();
@@ -208,7 +208,7 @@ async fn test_gdpr_delete() {
     let dir = TempDir::new().unwrap();
     let store = DeltaStore::new(test_config(&dir)).await.unwrap();
 
-    let batch = make_user_batch("u1", "alice", "alice@example.com");
+    let batch = make_user_batch("u1", "bob", "bob@example.com");
     store.append(schema::TABLE_USERS, batch).await.unwrap();
 
     // GDPR delete

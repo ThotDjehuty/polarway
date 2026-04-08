@@ -19,12 +19,12 @@
 //!
 //!     // Register
 //!     let user = handle.register(
-//!         "alice".into(), "alice@example.com".into(), "SecureP@ss1".into(),
-//!         "Alice".into(), "Smith".into(), SubscriptionTier::Pioneer,
+//!         "bob".into(), "bob@example.com".into(), "SecureP@ss1".into(),
+//!         "bob".into(), "Smith".into(), SubscriptionTier::Pioneer,
 //!     ).await?;
 //!
 //!     // Login → JWT token
-//!     let (token, user) = handle.login("alice".into(), "SecureP@ss1".into(), false).await?;
+//!     let (token, user) = handle.login("bob".into(), "SecureP@ss1".into(), false).await?;
 //!
 //!     // Verify on each request
 //!     let verified = handle.verify_token(token.clone()).await;

@@ -105,7 +105,7 @@ impl SubscriptionTier {
             Self::Free => 0,
             Self::Hobbyist => 900,       // €9
             Self::Pioneer => 2900,       // €29
-            Self::Professional => 4900,  // €49
+            Self::Professional => 19900, // €199
         }
     }
 }
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn test_tier_pricing() {
         assert_eq!(SubscriptionTier::Free.monthly_price_cents(), 0);
-        assert_eq!(SubscriptionTier::Professional.monthly_price_cents(), 4900);
+        assert_eq!(SubscriptionTier::Professional.monthly_price_cents(), 19900);
     }
 
     #[test]

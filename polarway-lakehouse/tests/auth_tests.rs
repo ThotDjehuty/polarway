@@ -18,28 +18,28 @@ async fn test_register_and_login() {
     // Register
     let user = handle
         .register(
-            "alice".into(),
-            "alice@example.com".into(),
+            "bob".into(),
+            "bob@example.com".into(),
             "StrongP@ss123".into(),
-            "Alice".into(),
+            "bob".into(),
             "Smith".into(),
             SubscriptionTier::Pioneer,
         )
         .await
         .unwrap();
 
-    assert_eq!(user.username, "alice");
+    assert_eq!(user.username, "bob");
     assert_eq!(user.role, UserRole::Pending);
     assert_eq!(user.subscription_tier, Some(SubscriptionTier::Pioneer));
 
     // Login fails for pending users? No — login should succeed, just role is pending
     let (token, logged_in) = handle
-        .login("alice".into(), "StrongP@ss123".into(), false)
+        .login("bob".into(), "StrongP@ss123".into(), false)
         .await
         .unwrap();
 
     assert!(!token.is_empty());
-    assert_eq!(logged_in.username, "alice");
+    assert_eq!(logged_in.username, "bob");
 }
 
 #[tokio::test]

@@ -19,7 +19,7 @@
 //!
 //!     // Log an event
 //!     handle.log(
-//!         "user-123".into(), "alice".into(),
+//!         "user-123".into(), "bob".into(),
 //!         ActionType::BacktestRun,
 //!         Some("strategy-456".into()),
 //!         "Backtest on BTC/USD 1m".into(),
