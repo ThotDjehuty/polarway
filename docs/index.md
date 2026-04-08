@@ -1,10 +1,10 @@
 # Polarway Documentation
 
-<div align="center">
+<div class="hero" markdown>
 
-![Polarway Logo](assets/logo.svg)
+<img src="assets/logo.svg" alt="Polarway" width="180">
 
-**Railway-Oriented Data Processing: Safe, Fast, and Composable**
+<p class="hero-tagline"><strong>Railway-Oriented Data Processing: Safe, Fast, and Composable</strong></p>
 
 [Get Started](getting-started.md){ .md-button .md-button--primary }
 [View on GitHub](https://github.com/ThotDjehuty/polarway){ .md-button }
@@ -21,7 +21,7 @@
 
 <div class="grid cards" markdown>
 
-- :material-railway: **Railway-Oriented Programming**
+- :material-train: **Railway-Oriented Programming**
 
     ---
 
