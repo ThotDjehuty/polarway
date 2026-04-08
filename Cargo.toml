@@ -7,6 +7,7 @@ members = [
   "polarway-sources",
   "polarway-distributed",
   "polarway-lakehouse",
+  "polarway-bus",
   "py-polars/runtime/polars-runtime-32",
   "py-polars/runtime/polars-runtime-64",
   "py-polars/runtime/polars-runtime-compat",
@@ -20,7 +21,7 @@ default-members = [
   "crates/*",
   "polarway-grpc",
   "polarway-sources",
-  "polarway-distributed",
+  # polarway-distributed: excluded until datafusion upgrades to arrow 54+
   "polarway-lakehouse",
 ]
 
@@ -174,6 +175,8 @@ collapsible_if = "allow"
 # packed_simd_2 = { git = "https://github.com/rust-lang/packed_simd", rev = "e57c7ba11386147e6d2cbad7c88f376aab4bdc86" }
 # simd-json = { git = "https://github.com/ritchie46/simd-json", branch = "alignment" }
 tikv-jemallocator = { git = "https://github.com/pola-rs/jemallocator", rev = "c7991e5bb6b3e9f79db6b0f48dcda67c5c3d2936" }
+# Patch arrow-arith 53.4.0 to fix chrono 0.4.40+ quarter() ambiguity
+arrow-arith = { path = "patches/arrow-arith" }
 
 [profile.mindebug-dev]
 inherits = "dev"

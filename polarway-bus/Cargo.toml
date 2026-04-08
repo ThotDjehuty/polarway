@@ -1,0 +1,14 @@
+[package]
+name = "polarway-bus"
+version = "0.1.0"
+edition = "2021"
+description = "Generic, domain-agnostic event bus with fan-out, filtering, and drain buffers"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1", features = ["sync", "time", "rt", "macros"] }
+parking_lot = "0.12"
+log = "0.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
