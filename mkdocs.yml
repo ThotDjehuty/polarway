@@ -19,7 +19,10 @@ nav:
     - Python Client: python-client.md
     - Rust Client: rust-client.md
     - Distributed Mode (gRPC): distributed-mode.md
+  - Storage: storage.md
   - Lakehouse: lakehouse.md
+  - Time-Series: timeseries.md
+  - Streaming: streaming.md
   - Examples: examples.md
   - Reference:
     - API Reference: API_REFERENCE.md

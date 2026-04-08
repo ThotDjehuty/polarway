@@ -6,10 +6,11 @@
 
 **Railway-Oriented Data Processing: Safe, Fast, and Composable**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/ThotDjehuty/polarway/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen.svg)](https://github.com/ThotDjehuty/polarway/releases/tag/v2.0.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![crates.io](https://img.shields.io/crates/v/polarway-bus.svg)](https://crates.io/crates/polarway-bus)
 [![Documentation](https://readthedocs.org/projects/polarway/badge/?version=latest)](https://polarway.readthedocs.io/en/latest/?badge=latest)
 [![Notebooks](https://img.shields.io/badge/notebooks-7%20verified-blueviolet.svg)](notebooks/)
 
@@ -70,7 +71,7 @@ match pipeline:
     case Err(e): handle_failure(e)  # Clear error path
 ```
 
-📚 **[Functional Programming Guide →](https://polarway.readthedocs.io/en/latest/functional.html)**
+📚 **[Functional Programming Guide →](https://polarway.readthedocs.io/en/latest/FUNCTIONAL_PROGRAMMING_ADVANTAGES/)**
 
 ### 💾 Hybrid Storage Layer (v0.53.0)
 
@@ -83,7 +84,7 @@ Three-tier architecture optimized for cost and performance:
 
 **Results:** -20% cost (24 CHF vs 30 CHF), 18× compression, 85%+ cache hit rate
 
-📚 **[Storage Architecture →](https://polarway.readthedocs.io/en/latest/storage.html)**
+📚 **[Storage Architecture →](https://polarway.readthedocs.io/en/latest/storage/)**
 
 ### 🏗️ Lakehouse (polarway-lakehouse)
 
@@ -112,7 +113,7 @@ store.gdpr_delete_user("user_123").await?;
 
 **Features:** Authentication (Argon2 + JWT), audit logging, compaction, Z-ordering, GDPR compliance
 
-📚 **[Lakehouse Guide →](https://polarway.readthedocs.io/en/latest/lakehouse.html)**
+📚 **[Lakehouse Guide →](https://polarway.readthedocs.io/en/latest/lakehouse/)**
 
 ### 🌐 Client-Server via gRPC
 
@@ -127,7 +128,7 @@ filtered = df.filter(pw.col("price") > 100)     # Handle: "uuid-456"
 result = filtered.collect()  # Streams Arrow batches via gRPC
 ```
 
-📚 **[gRPC Architecture →](https://polarway.readthedocs.io/en/latest/architecture.html)**
+📚 **[gRPC Architecture →](https://polarway.readthedocs.io/en/latest/ARCHITECTURE/)**
 
 ## 📚 Quick Start
 
@@ -172,7 +173,7 @@ match result:
     case Err(e): print(f"Pipeline failed: {e}")
 ```
 
-📚 **[Complete Tutorial →](https://polarway.readthedocs.io/en/latest/quickstart.html)**
+📚 **[Complete Tutorial →](https://polarway.readthedocs.io/en/latest/getting-started/)**
 
 ### Storage Layer Example
 
@@ -201,7 +202,7 @@ result = client.query("""
 """)
 ```
 
-📚 **[Storage Guide →](https://polarway.readthedocs.io/en/latest/storage.html)**
+📚 **[Storage Guide →](https://polarway.readthedocs.io/en/latest/storage/)**
 
 ### Time-Series Example
 
@@ -221,7 +222,7 @@ sma_20 = ohlcv_5m.rolling("20m").agg({"close": "mean"})
 returns = ohlcv_5m.pct_change(periods=1)
 ```
 
-📚 **[Time-Series Guide →](https://polarway.readthedocs.io/en/latest/timeseries.html)**
+📚 **[Time-Series Guide →](https://polarway.readthedocs.io/en/latest/timeseries/)**
 
 ### Python-Native Streaming (No Server Required)
 
@@ -259,7 +260,7 @@ pl.scan_parquet("ticks/*.parquet").sink_batches(on_batch, chunk_size=200_000)
 ```
 
 📓 **[11 streaming patterns → `notebooks/phase5_streaming_test.ipynb`](notebooks/phase5_streaming_test.ipynb)**  
-📚 **[Streaming Guide →](https://polarway.readthedocs.io/en/latest/streaming.html)**
+📚 **[Streaming Guide →](https://polarway.readthedocs.io/en/latest/streaming/)**
 
 ## ✨ Key Features
 
@@ -310,7 +311,7 @@ pl.scan_parquet("ticks/*.parquet").sink_batches(on_batch, chunk_size=200_000)
 
 **Network Overhead:** 2-5ms per gRPC request (negligible for analytical queries)
 
-📚 **[Detailed Benchmarks →](https://polarway.readthedocs.io/en/latest/performance.html)**
+📚 **[Detailed Benchmarks →](https://polarway.readthedocs.io/en/latest/PERFORMANCE_COMPARISON/)**
 
 ## 🤝 Contributing
 
@@ -332,37 +333,50 @@ We welcome contributions to Polarway! Check out:
 
 Polarway actively contributes to Apache Arrow ecosystem. See [GITHUB_ISSUES_ANALYSIS.md](GITHUB_ISSUES_ANALYSIS.md) for our contribution strategy (13-15 developer-weeks, high ROI).
 
-📚 **[Contributing Guide →](https://polarway.readthedocs.io/en/latest/contributing.html)**
+📚 **[Contributing Guide →](https://polarway.readthedocs.io/en/latest/CONTRIBUTING/)**
 
 ## 📚 Documentation
 
 Complete documentation available at **[polarway.readthedocs.io](https://polarway.readthedocs.io/)**:
 
-- **[Quick Start Guide](https://polarway.readthedocs.io/en/latest/quickstart.html)**: Installation and first pipeline
-- **[Railway-Oriented Programming](https://polarway.readthedocs.io/en/latest/functional.html)**: Monads, functors, error handling
-- **[Storage Architecture](https://polarway.readthedocs.io/en/latest/storage.html)**: Parquet + DuckDB + Cache
-- **[gRPC Architecture](https://polarway.readthedocs.io/en/latest/architecture.html)**: Client-server design
-- **[Time-Series Guide](https://polarway.readthedocs.io/en/latest/timeseries.html)**: OHLCV, rolling windows, indicators
-- **[Streaming Guide](https://polarway.readthedocs.io/en/latest/streaming.html)**: WebSocket, Kafka, real-time pipelines
-- **[API Reference](https://polarway.readthedocs.io/en/latest/api.html)**: Complete Python/Rust APIs
-- **[Performance Tuning](https://polarway.readthedocs.io/en/latest/performance.html)**: Benchmarks and optimization tips
+- **[Getting Started](https://polarway.readthedocs.io/en/latest/getting-started/)**: Installation and first pipeline
+- **[Railway-Oriented Programming](https://polarway.readthedocs.io/en/latest/FUNCTIONAL_PROGRAMMING_ADVANTAGES/)**: Monads, functors, error handling
+- **[Storage Architecture](https://polarway.readthedocs.io/en/latest/storage/)**: Parquet + DuckDB + Cache
+- **[gRPC Architecture](https://polarway.readthedocs.io/en/latest/ARCHITECTURE/)**: Client-server design
+- **[Lakehouse Guide](https://polarway.readthedocs.io/en/latest/lakehouse/)**: ACID transactions, time-travel, GDPR
+- **[Time-Series Guide](https://polarway.readthedocs.io/en/latest/timeseries/)**: OHLCV, rolling windows, indicators
+- **[Streaming Guide](https://polarway.readthedocs.io/en/latest/streaming/)**: Real-time processing, WebSocket, batch callbacks
+- **[API Reference](https://polarway.readthedocs.io/en/latest/API_REFERENCE/)**: Complete Python/Rust APIs
+- **[Performance Comparison](https://polarway.readthedocs.io/en/latest/PERFORMANCE_COMPARISON/)**: Benchmarks and optimization tips
 
 ## 🛠️ Development
 
 ### Project Structure
 
-- **polarway-grpc/** — Rust gRPC server
+- **polarway-grpc/** — Rust gRPC server ([crates.io](https://crates.io/crates/polarway-grpc))
   - **src/**
     - **service.rs** — gRPC service
     - **handles.rs** — Handle lifecycle
     - **storage/** — Storage backends
   - Cargo.toml
-- **polarway-lakehouse/** — Delta Lake storage layer
+- **polarway-lakehouse/** — Delta Lake storage layer ([crates.io](https://crates.io/crates/polarway-lakehouse))
   - **src/**
     - **store.rs** — DeltaStore (ACID, time-travel, SQL)
     - **auth/** — Authentication (Argon2, JWT)
     - **audit/** — Audit logging (append-only)
     - **maintenance.rs** — Background optimization
+  - Cargo.toml
+- **polarway-bus/** — Generic event bus ([crates.io](https://crates.io/crates/polarway-bus))
+  - **src/**
+    - **lib.rs** — EventBus, topic routing, backpressure
+  - Cargo.toml
+- **polarway-sources/** — Network data sources ([crates.io](https://crates.io/crates/polarway-sources))
+  - **src/**
+    - **lib.rs** — WebSocket, HTTP, exchange connectors
+  - Cargo.toml
+- **polarway-distributed/** — Distributed coordination
+  - **src/**
+    - **lib.rs** — Cluster management, load balancing
   - Cargo.toml
 - **polarway-python/** — Python client
   - **polarway/**
@@ -373,6 +387,9 @@ Complete documentation available at **[polarway.readthedocs.io](https://polarway
   - pyproject.toml
 - **docs/** — Documentation (MkDocs)
   - index.md
+  - storage.md — Hybrid storage architecture
+  - timeseries.md — Time-series guide
+  - streaming.md — Streaming guide
   - lakehouse.md — Lakehouse guide
   - ...
 - **proto/** — Protocol buffers

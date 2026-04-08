@@ -598,4 +598,4 @@ asyncio.run(realtime_processor())
 
 ---
 
-**More examples:** [GitHub Examples](https://github.com/yourusername/polarway/tree/main/examples)
+**More examples:** [GitHub Examples](https://github.com/ThotDjehuty/polarway/tree/main/examples)

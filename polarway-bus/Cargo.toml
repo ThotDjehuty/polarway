@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "Generic, domain-agnostic event bus with fan-out, filtering, and drain buffers"
 license = "MIT"
+repository = "https://github.com/ThotDjehuty/polarway"
+keywords = ["event-bus", "pubsub", "broadcast", "async", "tokio"]
+readme = "README.md"
+categories = ["asynchronous", "data-structures"]
 
 [dependencies]
 tokio = { version = "1", features = ["sync", "time", "rt", "macros"] }

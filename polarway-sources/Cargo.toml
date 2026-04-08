@@ -3,11 +3,18 @@ name = "polarway-sources"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.70"
+authors = ["Polarway Contributors"]
+license = "MIT"
+description = "Network-native data sources (WebSocket, REST, gRPC) for streaming into Arrow RecordBatches"
+repository = "https://github.com/ThotDjehuty/polarway"
+keywords = ["websocket", "rest", "grpc", "streaming", "arrow"]
+readme = "README.md"
+categories = ["network-programming", "database"]
 
 [dependencies]
 # Arrow and data processing
-arrow = { version = "53.0", features = ["ipc", "json"] }
-arrow-schema = "53.0"
+arrow = { version = "54", features = ["ipc", "json"] }
+arrow-schema = "54"
 
 # Async runtime
 tokio = { version = "1.40", features = ["full"] }

@@ -6,17 +6,21 @@ authors = ["Polarway Contributors"]
 license = "MIT"
 description = "gRPC server for Polarway Railway-Oriented Data Processing"
 repository = "https://github.com/ThotDjehuty/polarway"
+keywords = ["grpc", "dataframe", "arrow", "streaming", "railway-oriented"]
+readme = "README.md"
+categories = ["database", "network-programming"]
 
 [dependencies]
 # Core Polars/Arrow (disable PyO3 to avoid dylib dependency)
-polars = { path = "../crates/polars", default-features = false, features = ["lazy", "new_streaming", "parquet", "csv", "json", "temporal", "dtype-time"] }
-polars-io = { path = "../crates/polars-io", default-features = false, features = ["ipc", "csv"] }
-polars-lazy = { path = "../crates/polars-lazy", default-features = false }
-polars-utils = { path = "../crates/polars-utils" }
-arrow = "53.0"
-arrow-flight = "53.0"
-arrow-ipc = "53.0"
-parquet = "53.0"
+# version = used by cargo publish (crates.io); path = used for local dev builds
+polars = { version = "0.52", path = "../crates/polars", default-features = false, features = ["lazy", "new_streaming", "parquet", "csv", "json"] }
+polars-io = { version = "0.52", path = "../crates/polars-io", default-features = false, features = ["ipc", "csv"] }
+polars-lazy = { version = "0.52", path = "../crates/polars-lazy", default-features = false }
+polars-utils = { version = "0.52", path = "../crates/polars-utils" }
+arrow = "54"
+arrow-flight = "54"
+arrow-ipc = "54"
+parquet = "54"
 
 # Storage backends
 lru = "0.12" # LRU cache for hot data

@@ -684,4 +684,4 @@ touch /state/test && rm /state/test
 
 ---
 
-**Need help?** Join our [Discord](https://discord.gg/polarway) or open an [issue](https://github.com/yourusername/polarway/issues)
+**Need help?** Open an [issue](https://github.com/ThotDjehuty/polarway/issues)

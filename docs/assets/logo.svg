@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2196F3"/>
+      <stop offset="100%" stop-color="#0D47A1"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E5A835"/>
+      <stop offset="100%" stop-color="#C88A2A"/>
+    </linearGradient>
+  </defs>
+  <!-- Gold circle (from original Polarway logo) -->
+  <circle cx="50" cy="48" r="42" fill="none" stroke="#E5A835" stroke-width="2.5" opacity="0.8"/>
+  <!-- Blue Sierpinski-inspired main triangle -->
+  <polygon points="50,8 10,82 90,82" fill="url(#g1)" opacity="0.9"/>
+  <!-- Gold inner triangle -->
+  <polygon points="50,35 30,72 70,72" fill="url(#g2)"/>
+  <!-- Small blue triangles (Sierpinski pattern) -->
+  <polygon points="30,45 20,65 40,65" fill="url(#g1)" opacity="0.7"/>
+  <polygon points="70,45 60,65 80,65" fill="url(#g1)" opacity="0.7"/>
+  <polygon points="50,20 40,40 60,40" fill="url(#g1)" opacity="0.7"/>
+  <!-- Railway track hints -->
+  <line x1="25" y1="60" x2="75" y2="60" stroke="white" stroke-width="1.2" opacity="0.5"/>
+  <line x1="20" y1="70" x2="80" y2="70" stroke="white" stroke-width="1.2" opacity="0.5"/>
+</svg>

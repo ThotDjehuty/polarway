@@ -234,8 +234,8 @@ match result:
 ## Community & Support
 
 - 📖 **Documentation**: https://polarway.readthedocs.io/
-- 💬 **Discussions**: https://github.com/yourusername/polarway/discussions
-- 🐛 **Issues**: https://github.com/yourusername/polarway/issues
+- 💬 **Discussions**: https://github.com/ThotDjehuty/polarway/discussions
+- 🐛 **Issues**: https://github.com/ThotDjehuty/polarway/issues
 - 📧 **Email**: support@polarway.dev
 
 ---

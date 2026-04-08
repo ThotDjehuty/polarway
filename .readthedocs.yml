@@ -14,8 +14,6 @@ mkdocs:
 python:
   install:
     - requirements: docs/requirements.txt
-  install:
-    - requirements: docs/requirements.txt
 
 # Build HTML and PDF documentation
 # https://docs.readthedocs.io/en/stable/guides/pdf-non-ascii-languages.html

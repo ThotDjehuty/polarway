@@ -147,7 +147,7 @@ docker-compose up -d
 ### Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/polarway.git
+git clone https://github.com/ThotDjehuty/polarway.git
 cd polarway
 ```
 
@@ -528,4 +528,4 @@ sudo ufw allow 50052/tcp  # Linux
 
 ---
 
-**Need help?** Join our [Discord](https://discord.gg/polarway) or open an [issue](https://github.com/yourusername/polarway/issues)
+**Need help?** Open an [issue](https://github.com/ThotDjehuty/polarway/issues)

@@ -7,7 +7,7 @@
 **Railway-Oriented Data Processing: Safe, Fast, and Composable**
 
 [Get Started](getting-started.md){ .md-button .md-button--primary }
-[View on GitHub](https://github.com/yourusername/polarway){ .md-button }
+[View on GitHub](https://github.com/ThotDjehuty/polarway){ .md-button }
 
 </div>
 
@@ -216,10 +216,9 @@ async fn main() -> Result<()> {
 
 ## Community
 
-- **GitHub**: [github.com/yourusername/polarway](https://github.com/yourusername/polarway)
-- **Discord**: [discord.gg/polarway](https://discord.gg/polarway)
+- **GitHub**: [github.com/ThotDjehuty/polarway](https://github.com/ThotDjehuty/polarway)
 - **Documentation**: [polarway.readthedocs.io](https://polarway.readthedocs.io)
-- **Issues**: [github.com/yourusername/polarway/issues](https://github.com/yourusername/polarway/issues)
+- **Issues**: [github.com/ThotDjehuty/polarway/issues](https://github.com/ThotDjehuty/polarway/issues)
 
 ## License
 
