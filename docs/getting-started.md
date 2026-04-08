@@ -1,6 +1,6 @@
 # Getting Started with Polarway
 
-![Polarway Logo](assets/logo.svg)
+![Polarway Logo](assets/polarway-logo.png)
 
 Welcome to **Polarway** - a revolutionary data engineering platform that brings Railway-Oriented Programming principles to data processing with hybrid storage architecture.
 

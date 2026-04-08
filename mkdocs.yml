@@ -71,8 +71,8 @@ theme:
           toggle:
               icon: material/brightness-4
               name: Switch to light mode
-    logo: assets/logo.svg
-    favicon: assets/logo.svg
+    logo: assets/polarway-logo.png
+    favicon: assets/polarway-logo.png
     features:
         - navigation.tracking
         - navigation.sections

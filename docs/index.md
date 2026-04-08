@@ -2,7 +2,7 @@
 
 <div class="hero" markdown>
 
-<img src="assets/logo.svg" alt="Polarway" width="180">
+<img src="assets/polarway-logo.png" alt="Polarway" width="240">
 
 <p class="hero-tagline"><strong>Railway-Oriented Data Processing: Safe, Fast, and Composable</strong></p>
 
