@@ -45,9 +45,9 @@ def read_parquet(path: str, **kwargs) -> "DataFrame":
         DataFrame handle
     
     Example:
-        >>> import polarway as pd
-        >>> pd.connect("localhost:50051")
-        >>> df = pd.read_parquet("data.parquet")
+        >>> import polarway as pw
+        >>> pw.connect("localhost:50051")
+        >>> df = pw.read_parquet("data.parquet")
         >>> print(df.shape())
         (1000, 5)
     """

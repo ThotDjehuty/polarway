@@ -18,28 +18,28 @@ async fn test_register_and_login() {
     // Register
     let user = handle
         .register(
-            "bob".into(),
-            "bob@example.com".into(),
+            "albert".into(),
+            "albert@example.com".into(),
             "StrongP@ss123".into(),
-            "bob".into(),
+            "Albert".into(),
             "Smith".into(),
             SubscriptionTier::Pioneer,
         )
         .await
         .unwrap();
 
-    assert_eq!(user.username, "bob");
+    assert_eq!(user.username, "albert");
     assert_eq!(user.role, UserRole::Pending);
     assert_eq!(user.subscription_tier, Some(SubscriptionTier::Pioneer));
 
     // Login fails for pending users? No — login should succeed, just role is pending
     let (token, logged_in) = handle
-        .login("bob".into(), "StrongP@ss123".into(), false)
+        .login("albert".into(), "StrongP@ss123".into(), false)
         .await
         .unwrap();
 
     assert!(!token.is_empty());
-    assert_eq!(logged_in.username, "bob");
+    assert_eq!(logged_in.username, "albert");
 }
 
 #[tokio::test]
@@ -49,10 +49,10 @@ async fn test_verify_token() {
 
     handle
         .register(
-            "bob".into(),
-            "bob@example.com".into(),
+            "bernoulli".into(),
+            "bernoulli@example.com".into(),
             "SecureP@ss99".into(),
-            "Bob".into(),
+            "Bernoulli".into(),
             "Jones".into(),
             SubscriptionTier::Hobbyist,
         )
@@ -60,14 +60,14 @@ async fn test_verify_token() {
         .unwrap();
 
     let (token, _) = handle
-        .login("bob".into(), "SecureP@ss99".into(), false)
+        .login("bernoulli".into(), "SecureP@ss99".into(), false)
         .await
         .unwrap();
 
     // Verify valid token
     let user = handle.verify_token(token.clone()).await;
     assert!(user.is_some());
-    assert_eq!(user.unwrap().username, "bob");
+    assert_eq!(user.unwrap().username, "bernoulli");
 
     // Verify invalid token
     let bad = handle.verify_token("invalid.token.here".into()).await;

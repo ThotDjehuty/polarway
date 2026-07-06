@@ -60,7 +60,7 @@ impl std::fmt::Display for UserRole {
     }
 }
 
-/// Subscription tiers matching pricing plans
+/// Subscription tiers (pricing is deployment-specific configuration)
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SubscriptionTier {
@@ -96,16 +96,6 @@ impl SubscriptionTier {
             Self::Hobbyist => UserRole::Trader,
             Self::Pioneer => UserRole::Trader,
             Self::Professional => UserRole::Trader,
-        }
-    }
-
-    /// Monthly price in EUR cents (for billing tracking)
-    pub fn monthly_price_cents(&self) -> u32 {
-        match self {
-            Self::Free => 0,
-            Self::Hobbyist => 900,       // €9
-            Self::Pioneer => 2900,       // €29
-            Self::Professional => 19900, // €199
         }
     }
 }
@@ -172,12 +162,6 @@ mod tests {
         assert!(UserRole::Trader.has_permission(&UserRole::Registered));
         assert!(!UserRole::Guest.has_permission(&UserRole::Trader));
         assert!(UserRole::Admin.has_permission(&UserRole::Admin));
-    }
-
-    #[test]
-    fn test_tier_pricing() {
-        assert_eq!(SubscriptionTier::Free.monthly_price_cents(), 0);
-        assert_eq!(SubscriptionTier::Professional.monthly_price_cents(), 19900);
     }
 
     #[test]

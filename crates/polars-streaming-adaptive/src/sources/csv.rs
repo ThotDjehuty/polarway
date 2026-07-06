@@ -171,8 +171,8 @@ mod tests {
     fn create_test_csv() -> NamedTempFile {
         let mut file = NamedTempFile::new().unwrap();
         writeln!(file, "name,age,city").unwrap();
-        writeln!(file, "Alice,30,NYC").unwrap();
-        writeln!(file, "Bob,25,LA").unwrap();
+        writeln!(file, "Albert,30,NYC").unwrap();
+        writeln!(file, "Bernoulli,25,LA").unwrap();
         writeln!(file, "Charlie,35,Chicago").unwrap();
         file
     }

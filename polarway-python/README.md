@@ -16,13 +16,13 @@ pip install -e .
 ## Quick Start
 
 ```python
-import polarway as pd
+import polarway as pw
 
 # Connect to server
-pd.connect("localhost:50051")
+pw.connect("localhost:50051")
 
 # Read Parquet
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 
 # Get info
 print(df.shape())  # (1000, 5)

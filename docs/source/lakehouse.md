@@ -182,11 +182,11 @@ let (auth, _handle) = AuthActor::new(store.clone(), config.clone()).await?;
 
 // Register
 let user = auth
-    .register("alice", "alice@example.com", "StrongP@ss123!", SubscriptionTier::Pro)
+    .register("albert", "albert@example.com", "StrongP@ss123!", SubscriptionTier::Pro)
     .await?;
 
 // Login → JWT token
-let token = auth.login("alice@example.com", "StrongP@ss123!").await?;
+let token = auth.login("albert@example.com", "StrongP@ss123!").await?;
 
 // Verify token (on every request)
 let claims = auth.verify(&token).await?;

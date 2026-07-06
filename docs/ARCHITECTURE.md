@@ -122,14 +122,14 @@ result = df.collect()  # Execute once
 
 Traditional row-based storage:
 ```
-Row 1: [id=1, name="bob", age=30, city="NYC"]
-Row 2: [id=2, name="Bob", age=25, city="LA"]
+Row 1: [id=1, name="bernoulli", age=30, city="NYC"]
+Row 2: [id=2, name="Bernoulli", age=25, city="LA"]
 ```
 
 Columnar storage (Arrow):
 ```
 id:   [1, 2]
-name: ["bob", "Bob"]
+name: ["bernoulli", "Bernoulli"]
 age:  [30, 25]
 city: ["NYC", "LA"]
 ```

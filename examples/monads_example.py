@@ -13,7 +13,7 @@ To build with monad support:
     maturin develop --features python
 """
 
-import polarway as pd
+import polarway as pw
 
 # These imports require Polarway compiled with PyO3 bindings
 # See: polarway/crates/polars-python/src/monads.rs

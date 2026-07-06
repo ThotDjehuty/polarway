@@ -27,18 +27,18 @@ def client():
 class TestRegistration:
     def test_register_user(self, client: LakehouseClient):
         user = client.register(
-            "alice", "alice@example.com", "StrongP@ss1",
-            first_name="Alice", last_name="Smith",
+            "albert", "albert@example.com", "StrongP@ss1",
+            first_name="Albert", last_name="Smith",
             tier=SubscriptionTier.PIONEER,
         )
-        assert user.username == "alice"
+        assert user.username == "albert"
         assert user.role == UserRole.PENDING
         assert user.subscription_tier == SubscriptionTier.PIONEER
 
     def test_duplicate_username(self, client: LakehouseClient):
-        client.register("bob", "bob@example.com", "P@ssword123")
+        client.register("bernoulli", "bernoulli@example.com", "P@ssword123")
         with pytest.raises(ValueError, match="already exists"):
-            client.register("bob", "bob2@example.com", "P@ssword123")
+            client.register("bernoulli", "bernoulli2@example.com", "P@ssword123")
 
     def test_duplicate_email(self, client: LakehouseClient):
         client.register("carl", "carl@example.com", "P@ssword123")
@@ -177,9 +177,9 @@ class TestEnums:
         assert UserRole.ADMIN.has_permission(UserRole.TRADER)
         assert not UserRole.GUEST.has_permission(UserRole.TRADER)
 
-    def test_tier_pricing(self):
-        assert SubscriptionTier.FREE.monthly_price_cents == 0
-        assert SubscriptionTier.PROFESSIONAL.monthly_price_cents == 4900
+    def test_tier_default_role(self):
+        assert SubscriptionTier.FREE.default_role == UserRole.REGISTERED
+        assert SubscriptionTier.PIONEER.default_role == UserRole.TRADER
 
     def test_action_billable(self):
         assert ActionType.BACKTEST_RUN.is_billable

@@ -10,12 +10,12 @@ Usage:
     client = LakehouseClient("/data/lakehouse", jwt_secret="my-secret")
 
     # Register
-    user = client.register("alice", "alice@example.com", "P@ssword123",
-                           first_name="Alice", last_name="Smith",
+    user = client.register("albert", "albert@example.com", "P@ssword123",
+                           first_name="Albert", last_name="Smith",
                            tier=SubscriptionTier.PIONEER)
 
     # Login
-    token, user = client.login("alice", "P@ssword123")
+    token, user = client.login("albert", "P@ssword123")
 
     # Verify
     user = client.verify_token(token)
@@ -85,10 +85,6 @@ class SubscriptionTier(str, Enum):
     HOBBYIST = "hobbyist"
     PIONEER = "pioneer"
     PROFESSIONAL = "professional"
-
-    @property
-    def monthly_price_cents(self) -> int:
-        return {"free": 0, "hobbyist": 900, "pioneer": 2900, "professional": 4900}[self.value]
 
     @property
     def default_role(self) -> UserRole:

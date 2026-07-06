@@ -25,9 +25,9 @@ def connect(server: str = "localhost:50051", **kwargs) -> "PolarwayClient":
         PolarwayClient instance
     
     Example:
-        >>> import polarway as pd
-        >>> pd.connect("localhost:50051")
-        >>> df = pd.read_parquet("data.parquet")
+        >>> import polarway as pw
+        >>> pw.connect("localhost:50051")
+        >>> df = pw.read_parquet("data.parquet")
     """
     global _default_client
     client = PolarwayClient(server, **kwargs)
