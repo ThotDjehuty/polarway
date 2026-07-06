@@ -58,3 +58,8 @@ target/
 
 # Rust ICE crash dumps
 rustc-ice-*.txt
+
+# mkdocs build output + python build artifacts
+site/
+polarway-python/build/
+polarway-python/dist/
