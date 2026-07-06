@@ -213,8 +213,8 @@ print(type(df))  # <class 'polars.DataFrame'>
 
 **Polarway** (remote handles):
 ```python
-import polarway as pd
-df = pd.read_parquet("data.parquet")  # Returns Handle reference
+import polarway as pw
+df = pw.read_parquet("data.parquet")  # Returns Handle reference
 print(type(df))  # <class 'polarway.DataFrame'> (just a UUID)
 ```
 
@@ -229,7 +229,7 @@ print(result)  # Prints data
 
 **Polarway**:
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 df2 = df.select(["col1"])  # Returns new handle
 result = df2.collect()  # Explicit collection needed
 print(result)  # PyArrow Table
@@ -247,7 +247,7 @@ except Exception as e:
 
 **Polarway** (Result monad):
 ```python
-result = pd.read_parquet("missing.parquet").collect()
+result = pw.read_parquet("missing.parquet").collect()
 if result.is_ok():
     df = result.unwrap()
 else:
@@ -309,11 +309,11 @@ from polars import col, lit
 
 **After:**
 ```python
-import polarway as pd
+import polarway as pw
 from polarway import col, lit
 
 # Connect to server
-client = pd.connect("localhost:50051")
+client = pw.connect("localhost:50051")
 ```
 
 ### 3. Add Server Connection
@@ -348,10 +348,10 @@ print(result)
 
 **After (Polarway):**
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 result = (
     df
-    .filter(pd.col("price") > 100)
+    .filter(pw.col("price") > 100)
     .select(["symbol", "price"])
     .group_by("symbol")
     .agg({"price": "mean"})
@@ -375,10 +375,10 @@ result = (
 **After (Polarway):**
 ```python
 # Lazy by default! No need for scan_
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 result = (
     df
-    .filter(pd.col("price") > 100)
+    .filter(pw.col("price") > 100)
     .collect()
 )
 ```
@@ -394,8 +394,8 @@ joined = df1.join(df2, on="id")
 
 **After (Polarway):**
 ```python
-df1 = pd.read_parquet("data1.parquet")
-df2 = pd.read_parquet("data2.parquet")
+df1 = pw.read_parquet("data1.parquet")
+df2 = pw.read_parquet("data2.parquet")
 joined = df1.join(df2, on="id")
 result = joined.collect()  # Explicit collection
 ```
@@ -408,8 +408,8 @@ Polarway enables true parallel operations:
 ```python
 results = []
 for i in range(100):
-    df = pd.read_parquet(f"file_{i}.parquet")
-    result = df.filter(pd.col("value") > 0).collect()
+    df = pw.read_parquet(f"file_{i}.parquet")
+    result = df.filter(pw.col("value") > 0).collect()
     results.append(result)
 ```
 
@@ -418,7 +418,7 @@ for i in range(100):
 import asyncio
 
 async def process_files():
-    async with pd.AsyncClient("localhost:50051") as client:
+    async with pw.AsyncClient("localhost:50051") as client:
         # Read all files in parallel
         handles = await asyncio.gather(*[
             client.read_parquet(f"file_{i}.parquet")
@@ -427,7 +427,7 @@ async def process_files():
         
         # Process all in parallel
         results = await asyncio.gather(*[
-            h.filter(pd.col("value") > 0).collect()
+            h.filter(pw.col("value") > 0).collect()
             for h in handles
         ])
     return results
@@ -441,8 +441,8 @@ results = await process_files()
 
 | Operation | Polars | Polarway | Notes |
 |-----------|--------|----------|-------|
-| Read Parquet | `pl.read_parquet()` | `pd.read_parquet()` | ✅ Same |
-| Read CSV | `pl.read_csv()` | `pd.read_csv()` | ✅ Same |
+| Read Parquet | `pl.read_parquet()` | `pw.read_parquet()` | ✅ Same |
+| Read CSV | `pl.read_csv()` | `pw.read_csv()` | ✅ Same |
 | Select | `df.select()` | `df.select()` | ✅ Same |
 | Filter | `df.filter()` | `df.filter()` | ✅ Same |
 | Group By | `df.group_by()` | `df.group_by()` | ✅ Same |
@@ -453,8 +453,8 @@ results = await process_files()
 
 | Operation | Polars | Polarway | Notes |
 |-----------|--------|----------|-------|
-| Read local file | `pl.read_parquet("file.parquet")` | `pd.read_parquet("file.parquet")` | ✅ Same |
-| Scan lazy | `pl.scan_parquet()` | `pd.read_parquet()` | ⚠️ Lazy by default |
+| Read local file | `pl.read_parquet("file.parquet")` | `pw.read_parquet("file.parquet")` | ✅ Same |
+| Scan lazy | `pl.scan_parquet()` | `pw.read_parquet()` | ⚠️ Lazy by default |
 | Write Parquet | `df.write_parquet()` | `df.write_parquet()` | ✅ Same |
 | Write CSV | `df.write_csv()` | `df.write_csv()` | ✅ Same |
 
@@ -462,8 +462,8 @@ results = await process_files()
 
 | Operation | Polars | Polarway | Notes |
 |-----------|--------|----------|-------|
-| Column reference | `pl.col("name")` | `pd.col("name")` | ✅ Same |
-| Literal value | `pl.lit(100)` | `pd.lit(100)` | ✅ Same |
+| Column reference | `pl.col("name")` | `pw.col("name")` | ✅ Same |
+| Literal value | `pl.lit(100)` | `pw.lit(100)` | ✅ Same |
 | String ops | `.str.contains()` | `.str.contains()` | ✅ Same |
 | Datetime ops | `.dt.year()` | `.dt.year()` | ✅ Same |
 | Aggregations | `.mean()`, `.sum()` | `.mean()`, `.sum()` | ✅ Same |
@@ -472,9 +472,9 @@ results = await process_files()
 
 | Operation | Polars | Polarway | Notes |
 |-----------|--------|----------|-------|
-| Async client | ❌ N/A | `pd.AsyncClient()` | ✨ New |
-| WebSocket | ❌ N/A | `pd.from_websocket()` | ✨ New |
-| REST API | ❌ N/A | `pd.read_rest_api()` | ✨ New |
+| Async client | ❌ N/A | `pw.AsyncClient()` | ✨ New |
+| WebSocket | ❌ N/A | `pw.from_websocket()` | ✨ New |
+| REST API | ❌ N/A | `pw.read_rest_api()` | ✨ New |
 | Time-series | Manual | `df.as_timeseries()` | ✨ New |
 | OHLCV resample | Manual | `.resample_ohlcv()` | ✨ New |
 | Result monad | Exceptions | `.is_ok()`, `.unwrap()` | ✨ New |
@@ -494,8 +494,8 @@ def test_data_processing():
 **After (Polarway):**
 ```python
 def test_data_processing():
-    df = pd.read_parquet("test_data.parquet")
-    result = df.filter(pd.col("value") > 0).collect()
+    df = pw.read_parquet("test_data.parquet")
+    result = df.filter(pw.col("value") > 0).collect()
     assert result.num_rows > 0
 ```
 
@@ -512,8 +512,8 @@ polars_time = time.time() - start
 
 # Polarway
 start = time.time()
-df = pd.read_parquet("data.parquet")
-result = df.filter(pd.col("price") > 100).collect()
+df = pw.read_parquet("data.parquet")
+result = df.filter(pw.col("price") > 100).collect()
 polarway_time = time.time() - start
 
 print(f"Polars: {polars_time:.3f}s")
@@ -544,13 +544,13 @@ print(f"Overhead: {((polarway_time/polars_time)-1)*100:.1f}%")
 
 **Error:**
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 print(df)  # Prints: DataFrame(handle="abc-123")
 ```
 
 **Solution:**
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 result = df.collect()
 print(result)  # Prints: pyarrow.Table
 ```
@@ -559,13 +559,13 @@ print(result)  # Prints: pyarrow.Table
 
 **Error:**
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 print(df.shape)  # AttributeError: 'DataFrame' object has no attribute 'shape'
 ```
 
 **Solution:**
 ```python
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 result = df.collect()
 print(result.num_rows, result.num_columns)
 ```
@@ -582,7 +582,7 @@ except FileNotFoundError:
 
 **After:**
 ```python
-result = pd.read_parquet("data.parquet").collect()
+result = pw.read_parquet("data.parquet").collect()
 if result.is_err():
     print(f"Error: {result.unwrap_err()}")
 ```
@@ -597,7 +597,7 @@ df = pl.read_parquet("data.parquet")
 print(type(df))  # <class 'polars.DataFrame'>
 
 # Polarway
-result = pd.read_parquet("data.parquet").collect()
+result = pw.read_parquet("data.parquet").collect()
 print(type(result))  # <class 'pyarrow.Table'>
 
 # Convert to Pandas if needed
@@ -613,10 +613,10 @@ pandas_df = result.to_pandas()
 find . -name "*.py" -exec grep -l "import polars" {} \;
 
 # Replace imports (macOS)
-find . -name "*.py" -exec sed -i '' 's/import polars as pl/import polarway as pd/g' {} \;
+find . -name "*.py" -exec sed -i '' 's/import polars as pl/import polarway as pw/g' {} \;
 
 # Replace imports (Linux)
-find . -name "*.py" -exec sed -i 's/import polars as pl/import polarway as pd/g' {} \;
+find . -name "*.py" -exec sed -i 's/import polars as pl/import polarway as pw/g' {} \;
 ```
 
 ### Linting Rules

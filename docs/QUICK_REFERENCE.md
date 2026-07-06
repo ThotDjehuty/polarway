@@ -5,10 +5,10 @@ A comprehensive cheat sheet for common Polarway operations.
 ## 🚀 Getting Started
 
 ```python
-import polarway as pd
+import polarway as pw
 
 # Connect to gRPC server
-client = pd.connect("localhost:50051")
+client = pw.connect("localhost:50051")
 ```
 
 ## 📥 Data Loading
@@ -17,30 +17,30 @@ client = pd.connect("localhost:50051")
 
 ```python
 # Parquet (recommended for performance)
-df = pd.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet")
 
 # With column selection
-df = pd.read_parquet("data.parquet", columns=["col1", "col2"])
+df = pw.read_parquet("data.parquet", columns=["col1", "col2"])
 
 # With server-side filtering
-df = pd.read_parquet("data.parquet", predicate="price > 100")
+df = pw.read_parquet("data.parquet", predicate="price > 100")
 
 # CSV
-df = pd.read_csv("data.csv")
-df = pd.read_csv("data.csv", separator=";", has_header=True)
+df = pw.read_csv("data.csv")
+df = pw.read_csv("data.csv", separator=";", has_header=True)
 
 # JSON
-df = pd.read_json("data.json")
-df = pd.read_json("data.ndjson", format="ndjson")  # Newline-delimited
+df = pw.read_json("data.json")
+df = pw.read_json("data.ndjson", format="ndjson")  # Newline-delimited
 ```
 
 ### Reading from Streams
 
 ```python
 # WebSocket
-stream = pd.from_websocket(
+stream = pw.from_websocket(
     url="wss://stream.example.com/ws",
-    schema={"price": pd.Float64, "timestamp": pd.Datetime("ms")},
+    schema={"price": pw.Float64, "timestamp": pw.Datetime("ms")},
     format="json"
 )
 
@@ -49,7 +49,7 @@ async for batch in stream.batches(size=1000):
     print(batch)
 
 # REST API with pagination
-df = pd.read_rest_api(
+df = pw.read_rest_api(
     url="https://api.example.com/data",
     pagination="cursor",
     page_size=1000
@@ -86,9 +86,9 @@ df.select(["col1", "col2"])
 
 # Select with expressions
 df.select([
-    pd.col("price"),
-    pd.col("volume").alias("vol"),
-    (pd.col("price") * pd.col("volume")).alias("notional")
+    pw.col("price"),
+    pw.col("volume").alias("vol"),
+    (pw.col("price") * pw.col("volume")).alias("notional")
 ])
 
 # Drop columns
@@ -102,27 +102,27 @@ df.rename({"old_name": "new_name"})
 
 ```python
 # Simple filter
-df.filter(pd.col("price") > 100)
+df.filter(pw.col("price") > 100)
 
 # Multiple conditions (AND)
 df.filter(
-    (pd.col("price") > 100) & 
-    (pd.col("volume") > 1000)
+    (pw.col("price") > 100) & 
+    (pw.col("volume") > 1000)
 )
 
 # Multiple conditions (OR)
 df.filter(
-    (pd.col("symbol") == "AAPL") | 
-    (pd.col("symbol") == "GOOGL")
+    (pw.col("symbol") == "AAPL") | 
+    (pw.col("symbol") == "GOOGL")
 )
 
 # String operations
-df.filter(pd.col("name").str.contains("Apple"))
-df.filter(pd.col("email").str.ends_with("@example.com"))
+df.filter(pw.col("name").str.contains("Apple"))
+df.filter(pw.col("email").str.ends_with("@example.com"))
 
 # Null handling
-df.filter(pd.col("value").is_not_null())
-df.filter(pd.col("optional").is_null())
+df.filter(pw.col("value").is_not_null())
+df.filter(pw.col("optional").is_null())
 ```
 
 ## ➕ Adding/Modifying Columns
@@ -130,20 +130,20 @@ df.filter(pd.col("optional").is_null())
 ```python
 # Add new column
 df.with_column(
-    (pd.col("price") * 1.1).alias("price_with_tax")
+    (pw.col("price") * 1.1).alias("price_with_tax")
 )
 
 # Multiple columns at once
 df.with_columns([
-    (pd.col("price") * pd.col("quantity")).alias("total"),
-    pd.col("price").cast(pd.Int64).alias("price_int")
+    (pw.col("price") * pw.col("quantity")).alias("total"),
+    pw.col("price").cast(pw.Int64).alias("price_int")
 ])
 
 # Conditional column
 df.with_column(
-    pd.when(pd.col("price") > 100)
-      .then(pd.lit("expensive"))
-      .otherwise(pd.lit("affordable"))
+    pw.when(pw.col("price") > 100)
+      .then(pw.lit("expensive"))
+      .otherwise(pw.lit("affordable"))
       .alias("price_category")
 )
 ```
@@ -162,9 +162,9 @@ df.group_by("symbol").agg({
 
 # Custom aggregations
 df.group_by("symbol").agg([
-    pd.col("price").mean().alias("avg_price"),
-    pd.col("price").max().alias("max_price"),
-    pd.col("volume").sum().alias("total_volume")
+    pw.col("price").mean().alias("avg_price"),
+    pw.col("price").max().alias("max_price"),
+    pw.col("volume").sum().alias("total_volume")
 ])
 
 # Multiple group-by columns
@@ -213,72 +213,72 @@ df.sort([("symbol", False), ("price", True)])  # symbol asc, price desc
 
 ```python
 # Arithmetic
-pd.col("price") + 10
-pd.col("price") * pd.col("quantity")
-pd.col("value") / 100
+pw.col("price") + 10
+pw.col("price") * pw.col("quantity")
+pw.col("value") / 100
 
 # Comparisons
-pd.col("price") > 100
-pd.col("status") == "active"
-pd.col("amount").between(10, 100)
+pw.col("price") > 100
+pw.col("status") == "active"
+pw.col("amount").between(10, 100)
 
 # Logical operations
-(pd.col("a") > 5) & (pd.col("b") < 10)
-(pd.col("status") == "A") | (pd.col("status") == "B")
-~pd.col("flag")  # NOT
+(pw.col("a") > 5) & (pw.col("b") < 10)
+(pw.col("status") == "A") | (pw.col("status") == "B")
+~pw.col("flag")  # NOT
 ```
 
 ### String Operations
 
 ```python
 # Basic string methods
-pd.col("name").str.to_uppercase()
-pd.col("name").str.to_lowercase()
-pd.col("text").str.strip()
+pw.col("name").str.to_uppercase()
+pw.col("name").str.to_lowercase()
+pw.col("text").str.strip()
 
 # Pattern matching
-pd.col("email").str.contains("@gmail.com")
-pd.col("text").str.starts_with("Hello")
-pd.col("file").str.ends_with(".csv")
+pw.col("email").str.contains("@gmail.com")
+pw.col("text").str.starts_with("Hello")
+pw.col("file").str.ends_with(".csv")
 
 # String manipulation
-pd.col("text").str.replace("old", "new")
-pd.col("full_name").str.split(" ")
-pd.col("values").str.slice(0, 10)
+pw.col("text").str.replace("old", "new")
+pw.col("full_name").str.split(" ")
+pw.col("values").str.slice(0, 10)
 ```
 
 ### Datetime Operations
 
 ```python
 # Extract components
-pd.col("timestamp").dt.year()
-pd.col("timestamp").dt.month()
-pd.col("timestamp").dt.day()
-pd.col("timestamp").dt.hour()
-pd.col("timestamp").dt.minute()
+pw.col("timestamp").dt.year()
+pw.col("timestamp").dt.month()
+pw.col("timestamp").dt.day()
+pw.col("timestamp").dt.hour()
+pw.col("timestamp").dt.minute()
 
 # Date arithmetic
-pd.col("date") + pd.duration(days=7)
-pd.col("end_date") - pd.col("start_date")
+pw.col("date") + pw.duration(days=7)
+pw.col("end_date") - pw.col("start_date")
 
 # Formatting
-pd.col("timestamp").dt.strftime("%Y-%m-%d")
+pw.col("timestamp").dt.strftime("%Y-%m-%d")
 
 # Timezone conversion
-pd.col("timestamp").dt.convert_timezone("UTC")
+pw.col("timestamp").dt.convert_timezone("UTC")
 ```
 
 ### Null Handling
 
 ```python
 # Check for nulls
-pd.col("value").is_null()
-pd.col("value").is_not_null()
+pw.col("value").is_null()
+pw.col("value").is_not_null()
 
 # Fill nulls
-pd.col("value").fill_null(0)
-pd.col("value").fill_null_with_strategy("forward")
-pd.col("value").fill_null_with_strategy("backward")
+pw.col("value").fill_null(0)
+pw.col("value").fill_null_with_strategy("forward")
+pw.col("value").fill_null_with_strategy("backward")
 
 # Drop nulls
 df.drop_nulls()
@@ -289,16 +289,16 @@ df.drop_nulls(subset=["important_col"])
 
 ```python
 # Simple when-then-otherwise
-pd.when(pd.col("price") > 100)
-  .then(pd.lit("high"))
-  .otherwise(pd.lit("low"))
+pw.when(pw.col("price") > 100)
+  .then(pw.lit("high"))
+  .otherwise(pw.lit("low"))
 
 # Multiple conditions
-pd.when(pd.col("price") > 100)
-  .then(pd.lit("high"))
-  .when(pd.col("price") > 50)
-  .then(pd.lit("medium"))
-  .otherwise(pd.lit("low"))
+pw.when(pw.col("price") > 100)
+  .then(pw.lit("high"))
+  .when(pw.col("price") > 50)
+  .then(pw.lit("medium"))
+  .otherwise(pw.lit("low"))
 ```
 
 ## ⚡ Performance Operations
@@ -312,7 +312,7 @@ lazy_df = df.lazy()
 # Chain operations
 result = (
     lazy_df
-    .filter(pd.col("price") > 100)
+    .filter(pw.col("price") > 100)
     .select(["symbol", "price"])
     .group_by("symbol")
     .agg({"price": "mean"})
@@ -324,9 +324,9 @@ result = (
 
 ```python
 # Stream large file
-for batch in pd.scan_parquet("huge_file.parquet").iter_batches():
+for batch in pw.scan_parquet("huge_file.parquet").iter_batches():
     # Process each batch
-    processed = batch.filter(pd.col("value") > 0)
+    processed = batch.filter(pw.col("value") > 0)
     processed.write_parquet("output.parquet", mode="append")
 ```
 
@@ -336,7 +336,7 @@ for batch in pd.scan_parquet("huge_file.parquet").iter_batches():
 import asyncio
 
 async def process_files_parallel():
-    async with pd.AsyncClient("localhost:50051") as client:
+    async with pw.AsyncClient("localhost:50051") as client:
         # Read 100 files in parallel
         handles = await asyncio.gather(*[
             client.read_parquet(f"file_{i}.parquet")
@@ -345,7 +345,7 @@ async def process_files_parallel():
         
         # Process all in parallel
         results = await asyncio.gather(*[
-            h.filter(pd.col("value") > 0).collect()
+            h.filter(pw.col("value") > 0).collect()
             for h in handles
         ])
     
@@ -398,9 +398,9 @@ arrays = df.collect().to_pydict()
 ```python
 result = (
     df
-    .filter(pd.col("date") >= "2024-01-01")
+    .filter(pw.col("date") >= "2024-01-01")
     .select(["symbol", "price", "volume"])
-    .with_column((pd.col("price") * pd.col("volume")).alias("notional"))
+    .with_column((pw.col("price") * pw.col("volume")).alias("notional"))
     .group_by("symbol")
     .agg({
         "price": ["mean", "max", "min"],
@@ -418,7 +418,7 @@ result = (
 ```python
 # Rolling window
 df.with_column(
-    pd.col("price")
+    pw.col("price")
       .rolling(window_size=20)
       .mean()
       .alias("sma_20")
@@ -426,7 +426,7 @@ df.with_column(
 
 # Partition by group
 df.with_column(
-    pd.col("price")
+    pw.col("price")
       .rank()
       .over(partition_by="symbol", order_by="timestamp")
       .alias("price_rank")
@@ -459,7 +459,7 @@ df.melt(
 
 ```python
 # Load tick data
-ticks = pd.read_parquet("ticks.parquet")
+ticks = pw.read_parquet("ticks.parquet")
 
 # Convert to time-series
 ts = ticks.as_timeseries("timestamp")
@@ -480,14 +480,14 @@ ohlcv_1h = ts.resample_ohlcv("1h", price_col="price", volume_col="volume")
 ```python
 # Simple moving average
 df.with_column(
-    pd.col("close").rolling("20m").mean().alias("sma_20")
+    pw.col("close").rolling("20m").mean().alias("sma_20")
 )
 
 # Multiple aggregations
 df.with_columns([
-    pd.col("close").rolling("20m").mean().alias("sma_20"),
-    pd.col("close").rolling("50m").mean().alias("sma_50"),
-    pd.col("volume").rolling("20m").sum().alias("vol_20")
+    pw.col("close").rolling("20m").mean().alias("sma_20"),
+    pw.col("close").rolling("50m").mean().alias("sma_50"),
+    pw.col("volume").rolling("20m").sum().alias("vol_20")
 ])
 ```
 
@@ -495,14 +495,14 @@ df.with_columns([
 
 ```python
 # Lag/Lead
-df.with_column(pd.col("price").lag(1).alias("prev_price"))
-df.with_column(pd.col("price").lead(1).alias("next_price"))
+df.with_column(pw.col("price").lag(1).alias("prev_price"))
+df.with_column(pw.col("price").lead(1).alias("next_price"))
 
 # Difference
-df.with_column(pd.col("price").diff().alias("price_change"))
+df.with_column(pw.col("price").diff().alias("price_change"))
 
 # Percent change
-df.with_column(pd.col("price").pct_change().alias("return"))
+df.with_column(pw.col("price").pct_change().alias("return"))
 ```
 
 ## 🛡️ Error Handling
@@ -523,7 +523,7 @@ result.map(lambda t: print(t)).map_err(lambda e: log_error(e))
 
 # Try-except pattern
 try:
-    df = pd.read_parquet("file.parquet")
+    df = pw.read_parquet("file.parquet")
     result = df.collect()
 except PolarwayError as e:
     print(f"Operation failed: {e}")
@@ -533,27 +533,27 @@ except PolarwayError as e:
 
 ```python
 # Basic types
-pd.Int8, pd.Int16, pd.Int32, pd.Int64
-pd.UInt8, pd.UInt16, pd.UInt32, pd.UInt64
-pd.Float32, pd.Float64
-pd.Boolean
-pd.Utf8  # String
+pw.Int8, pw.Int16, pw.Int32, pw.Int64
+pw.UInt8, pw.UInt16, pw.UInt32, pw.UInt64
+pw.Float32, pw.Float64
+pw.Boolean
+pw.Utf8  # String
 
 # Temporal types
-pd.Date
-pd.Datetime("ms")  # millisecond precision
-pd.Datetime("us")  # microsecond precision
-pd.Datetime("ns")  # nanosecond precision
-pd.Duration
-pd.Time
+pw.Date
+pw.Datetime("ms")  # millisecond precision
+pw.Datetime("us")  # microsecond precision
+pw.Datetime("ns")  # nanosecond precision
+pw.Duration
+pw.Time
 
 # Complex types
-pd.List(pd.Int64)
-pd.Struct({"name": pd.Utf8, "age": pd.Int64})
-pd.Categorical
+pw.List(pw.Int64)
+pw.Struct({"name": pw.Utf8, "age": pw.Int64})
+pw.Categorical
 
 # Type casting
-df.with_column(pd.col("value").cast(pd.Float64))
+df.with_column(pw.col("value").cast(pw.Float64))
 ```
 
 ---

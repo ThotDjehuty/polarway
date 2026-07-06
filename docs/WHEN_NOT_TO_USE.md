@@ -22,8 +22,8 @@ Polarway is a powerful tool for specific use cases, but it's not always the righ
 **Example**:
 ```python
 # ❌ Don't do this (unnecessary overhead)
-import polarway as pd
-df = pd.read_parquet("local_file.parquet").collect()  # Network round-trip for no benefit
+import polarway as pw
+df = pw.read_parquet("local_file.parquet").collect()  # Network round-trip for no benefit
 
 # ✅ Do this instead
 import polars as pl

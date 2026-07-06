@@ -92,8 +92,8 @@ let df = read_parquet("file.parquet")?;
 ```python
 # Expressions compose naturally
 expr = (
-    (pd.col("price") * pd.col("quantity"))
-    .cast(pd.Float64)
+    (pw.col("price") * pw.col("quantity"))
+    .cast(pw.Float64)
     .alias("notional")
 )
 
@@ -106,8 +106,8 @@ df2.with_column(expr)
 
 ```python
 # Operations build a query plan
-df = pd.read_parquet("data.parquet")
-df = df.filter(pd.col("price") > 100)  # No execution yet
+df = pw.read_parquet("data.parquet")
+df = df.filter(pw.col("price") > 100)  # No execution yet
 df = df.select(["symbol", "price"])     # Still no execution
 
 # Optimized as single query
@@ -215,7 +215,7 @@ pub enum DataType {
 
 Before optimization:
 ```python
-df = pd.read_parquet("data.parquet")  # Read all 100 columns
+df = pw.read_parquet("data.parquet")  # Read all 100 columns
 df = df.select(["col1", "col2"])       # Use only 2 columns
 ```
 
@@ -228,8 +228,8 @@ Only read col1, col2 from Parquet (98 columns skipped)
 
 Before:
 ```python
-df = pd.read_parquet("data.parquet")  # Read 1M rows
-df = df.filter(pd.col("date") > "2024-01-01")  # Filter to 10K rows
+df = pw.read_parquet("data.parquet")  # Read 1M rows
+df = df.filter(pw.col("date") > "2024-01-01")  # Filter to 10K rows
 ```
 
 After:
@@ -242,10 +242,10 @@ Push filter into Parquet reader → Read only 10K rows
 ```python
 # User writes this
 result = (
-    pd.read_parquet("sales.parquet")
-    .filter(pd.col("region") == "US")
+    pw.read_parquet("sales.parquet")
+    .filter(pw.col("region") == "US")
     .select(["product", "revenue", "date"])
-    .filter(pd.col("date") > "2024-01-01")
+    .filter(pw.col("date") > "2024-01-01")
     .group_by("product")
     .agg({"revenue": "sum"})
 )
@@ -303,7 +303,7 @@ df3 = df2.select(...)                 # Another copy
 
 ```python
 # Polarway - data lives on server
-df = pd.read_parquet("10GB.parquet")  # Handle("abc"), server uses 10GB
+df = pw.read_parquet("10GB.parquet")  # Handle("abc"), server uses 10GB
 df2 = df.filter(...)                  # Handle("def"), server uses 10GB
 df3 = df2.select(...)                 # Handle("ghi"), server still 10GB
 # Total: 10GB RAM on server, ~1KB in Python

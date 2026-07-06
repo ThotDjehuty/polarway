@@ -11,9 +11,9 @@ Complete API documentation for both Rust and Python interfaces.
 Connect to a Polarway gRPC server.
 
 ```python
-import polarway as pd
+import polarway as pw
 
-client = pd.connect("localhost:50051")
+client = pw.connect("localhost:50051")
 ```
 
 **Parameters:**
@@ -26,7 +26,7 @@ client = pd.connect("localhost:50051")
 Async client for concurrent operations.
 
 ```python
-async with pd.AsyncClient("localhost:50051") as client:
+async with pw.AsyncClient("localhost:50051") as client:
     df = await client.read_parquet("data.parquet")
     result = await df.collect()
 ```
@@ -52,7 +52,7 @@ Select specific columns.
 
 ```python
 df.select(["col1", "col2"])
-df.select([pd.col("price"), pd.col("volume").alias("vol")])
+df.select([pw.col("price"), pw.col("volume").alias("vol")])
 ```
 
 **`filter(predicate: Expr) -> DataFrame`**
@@ -60,8 +60,8 @@ df.select([pd.col("price"), pd.col("volume").alias("vol")])
 Filter rows based on condition.
 
 ```python
-df.filter(pd.col("price") > 100)
-df.filter((pd.col("price") > 100) & (pd.col("volume") > 1000))
+df.filter(pw.col("price") > 100)
+df.filter((pw.col("price") > 100) & (pw.col("volume") > 1000))
 ```
 
 **`with_column(expr: Expr) -> DataFrame`**
@@ -69,7 +69,7 @@ df.filter((pd.col("price") > 100) & (pd.col("volume") > 1000))
 Add or modify a single column.
 
 ```python
-df.with_column((pd.col("price") * 1.1).alias("price_with_tax"))
+df.with_column((pw.col("price") * 1.1).alias("price_with_tax"))
 ```
 
 **`with_columns(exprs: List[Expr]) -> DataFrame`**
@@ -78,8 +78,8 @@ Add or modify multiple columns.
 
 ```python
 df.with_columns([
-    pd.col("price").cast(pd.Int64).alias("price_int"),
-    (pd.col("a") + pd.col("b")).alias("sum")
+    pw.col("price").cast(pw.Int64).alias("price_int"),
+    (pw.col("a") + pw.col("b")).alias("sum")
 ])
 ```
 
@@ -278,7 +278,7 @@ df.group_by("symbol").agg({
 Reference a column.
 
 ```python
-pd.col("price")
+pw.col("price")
 ```
 
 #### `lit(value: Any) -> Expr`
@@ -286,9 +286,9 @@ pd.col("price")
 Create a literal value.
 
 ```python
-pd.lit(100)
-pd.lit("text")
-pd.lit(True)
+pw.lit(100)
+pw.lit("text")
+pw.lit(True)
 ```
 
 #### `class Expr`
@@ -298,30 +298,30 @@ Expression builder for operations.
 ##### Arithmetic Operations
 
 ```python
-pd.col("price") + 10
-pd.col("price") - pd.col("cost")
-pd.col("price") * pd.col("quantity")
-pd.col("total") / pd.col("count")
-pd.col("base") ** 2  # Power
+pw.col("price") + 10
+pw.col("price") - pw.col("cost")
+pw.col("price") * pw.col("quantity")
+pw.col("total") / pw.col("count")
+pw.col("base") ** 2  # Power
 ```
 
 ##### Comparison Operations
 
 ```python
-pd.col("price") > 100
-pd.col("price") >= 100
-pd.col("price") < 50
-pd.col("price") <= 50
-pd.col("status") == "active"
-pd.col("status") != "inactive"
+pw.col("price") > 100
+pw.col("price") >= 100
+pw.col("price") < 50
+pw.col("price") <= 50
+pw.col("status") == "active"
+pw.col("status") != "inactive"
 ```
 
 ##### Logical Operations
 
 ```python
-(pd.col("a") > 5) & (pd.col("b") < 10)  # AND
-(pd.col("x") == 1) | (pd.col("y") == 2)  # OR
-~pd.col("flag")  # NOT
+(pw.col("a") > 5) & (pw.col("b") < 10)  # AND
+(pw.col("x") == 1) | (pw.col("y") == 2)  # OR
+~pw.col("flag")  # NOT
 ```
 
 ##### Methods
@@ -331,7 +331,7 @@ pd.col("status") != "inactive"
 Set column name.
 
 ```python
-pd.col("price").alias("price_usd")
+pw.col("price").alias("price_usd")
 ```
 
 **`cast(dtype: DataType) -> Expr`**
@@ -339,8 +339,8 @@ pd.col("price").alias("price_usd")
 Cast to different type.
 
 ```python
-pd.col("value").cast(pd.Float64)
-pd.col("timestamp").cast(pd.Datetime("ms"))
+pw.col("value").cast(pw.Float64)
+pw.col("timestamp").cast(pw.Datetime("ms"))
 ```
 
 **`is_null() -> Expr`**
@@ -348,7 +348,7 @@ pd.col("timestamp").cast(pd.Datetime("ms"))
 Check if value is null.
 
 ```python
-pd.col("value").is_null()
+pw.col("value").is_null()
 ```
 
 **`is_not_null() -> Expr`**
@@ -356,7 +356,7 @@ pd.col("value").is_null()
 Check if value is not null.
 
 ```python
-pd.col("value").is_not_null()
+pw.col("value").is_not_null()
 ```
 
 **`fill_null(value: Any) -> Expr`**
@@ -364,7 +364,7 @@ pd.col("value").is_not_null()
 Replace null values.
 
 ```python
-pd.col("price").fill_null(0)
+pw.col("price").fill_null(0)
 ```
 
 **`between(lower: Any, upper: Any) -> Expr`**
@@ -372,7 +372,7 @@ pd.col("price").fill_null(0)
 Check if value is in range.
 
 ```python
-pd.col("price").between(10, 100)
+pw.col("price").between(10, 100)
 ```
 
 ##### String Operations
@@ -382,7 +382,7 @@ pd.col("price").between(10, 100)
 Convert to uppercase.
 
 ```python
-pd.col("name").str.to_uppercase()
+pw.col("name").str.to_uppercase()
 ```
 
 **`str.to_lowercase() -> Expr`**
@@ -390,7 +390,7 @@ pd.col("name").str.to_uppercase()
 Convert to lowercase.
 
 ```python
-pd.col("name").str.to_lowercase()
+pw.col("name").str.to_lowercase()
 ```
 
 **`str.contains(pattern: str) -> Expr`**
@@ -398,7 +398,7 @@ pd.col("name").str.to_lowercase()
 Check if string contains pattern.
 
 ```python
-pd.col("email").str.contains("@gmail.com")
+pw.col("email").str.contains("@gmail.com")
 ```
 
 **`str.starts_with(prefix: str) -> Expr`**
@@ -406,7 +406,7 @@ pd.col("email").str.contains("@gmail.com")
 Check if string starts with prefix.
 
 ```python
-pd.col("text").str.starts_with("Hello")
+pw.col("text").str.starts_with("Hello")
 ```
 
 **`str.ends_with(suffix: str) -> Expr`**
@@ -414,7 +414,7 @@ pd.col("text").str.starts_with("Hello")
 Check if string ends with suffix.
 
 ```python
-pd.col("file").str.ends_with(".csv")
+pw.col("file").str.ends_with(".csv")
 ```
 
 **`str.replace(old: str, new: str) -> Expr`**
@@ -422,7 +422,7 @@ pd.col("file").str.ends_with(".csv")
 Replace substring.
 
 ```python
-pd.col("text").str.replace("old", "new")
+pw.col("text").str.replace("old", "new")
 ```
 
 **`str.strip() -> Expr`**
@@ -430,7 +430,7 @@ pd.col("text").str.replace("old", "new")
 Remove leading/trailing whitespace.
 
 ```python
-pd.col("text").str.strip()
+pw.col("text").str.strip()
 ```
 
 **`str.split(delimiter: str) -> Expr`**
@@ -438,7 +438,7 @@ pd.col("text").str.strip()
 Split string.
 
 ```python
-pd.col("full_name").str.split(" ")
+pw.col("full_name").str.split(" ")
 ```
 
 **`str.slice(start: int, length: int) -> Expr`**
@@ -446,7 +446,7 @@ pd.col("full_name").str.split(" ")
 Extract substring.
 
 ```python
-pd.col("text").str.slice(0, 10)
+pw.col("text").str.slice(0, 10)
 ```
 
 ##### Datetime Operations
@@ -456,7 +456,7 @@ pd.col("text").str.slice(0, 10)
 Extract year.
 
 ```python
-pd.col("timestamp").dt.year()
+pw.col("timestamp").dt.year()
 ```
 
 **`dt.month() -> Expr`**
@@ -464,7 +464,7 @@ pd.col("timestamp").dt.year()
 Extract month.
 
 ```python
-pd.col("timestamp").dt.month()
+pw.col("timestamp").dt.month()
 ```
 
 **`dt.day() -> Expr`**
@@ -472,7 +472,7 @@ pd.col("timestamp").dt.month()
 Extract day.
 
 ```python
-pd.col("timestamp").dt.day()
+pw.col("timestamp").dt.day()
 ```
 
 **`dt.hour() -> Expr`**
@@ -480,7 +480,7 @@ pd.col("timestamp").dt.day()
 Extract hour.
 
 ```python
-pd.col("timestamp").dt.hour()
+pw.col("timestamp").dt.hour()
 ```
 
 **`dt.minute() -> Expr`**
@@ -488,7 +488,7 @@ pd.col("timestamp").dt.hour()
 Extract minute.
 
 ```python
-pd.col("timestamp").dt.minute()
+pw.col("timestamp").dt.minute()
 ```
 
 **`dt.second() -> Expr`**
@@ -496,7 +496,7 @@ pd.col("timestamp").dt.minute()
 Extract second.
 
 ```python
-pd.col("timestamp").dt.second()
+pw.col("timestamp").dt.second()
 ```
 
 **`dt.strftime(format: str) -> Expr`**
@@ -504,7 +504,7 @@ pd.col("timestamp").dt.second()
 Format as string.
 
 ```python
-pd.col("timestamp").dt.strftime("%Y-%m-%d")
+pw.col("timestamp").dt.strftime("%Y-%m-%d")
 ```
 
 ##### Aggregation Methods
@@ -514,7 +514,7 @@ pd.col("timestamp").dt.strftime("%Y-%m-%d")
 Calculate mean.
 
 ```python
-pd.col("price").mean()
+pw.col("price").mean()
 ```
 
 **`sum() -> Expr`**
@@ -522,7 +522,7 @@ pd.col("price").mean()
 Calculate sum.
 
 ```python
-pd.col("volume").sum()
+pw.col("volume").sum()
 ```
 
 **`min() -> Expr`**
@@ -530,7 +530,7 @@ pd.col("volume").sum()
 Find minimum.
 
 ```python
-pd.col("price").min()
+pw.col("price").min()
 ```
 
 **`max() -> Expr`**
@@ -538,7 +538,7 @@ pd.col("price").min()
 Find maximum.
 
 ```python
-pd.col("price").max()
+pw.col("price").max()
 ```
 
 **`count() -> Expr`**
@@ -546,7 +546,7 @@ pd.col("price").max()
 Count values.
 
 ```python
-pd.col("id").count()
+pw.col("id").count()
 ```
 
 **`std() -> Expr`**
@@ -554,7 +554,7 @@ pd.col("id").count()
 Calculate standard deviation.
 
 ```python
-pd.col("returns").std()
+pw.col("returns").std()
 ```
 
 **`var() -> Expr`**
@@ -562,7 +562,7 @@ pd.col("returns").std()
 Calculate variance.
 
 ```python
-pd.col("returns").var()
+pw.col("returns").var()
 ```
 
 ##### Window Functions
@@ -572,8 +572,8 @@ pd.col("returns").var()
 Create rolling window.
 
 ```python
-pd.col("price").rolling(20).mean()
-pd.col("price").rolling("20m").mean()  # Time-based
+pw.col("price").rolling(20).mean()
+pw.col("price").rolling("20m").mean()  # Time-based
 ```
 
 **`rank() -> Expr`**
@@ -581,7 +581,7 @@ pd.col("price").rolling("20m").mean()  # Time-based
 Rank values.
 
 ```python
-pd.col("price").rank()
+pw.col("price").rank()
 ```
 
 **`over(partition_by: str, order_by: str) -> Expr`**
@@ -589,7 +589,7 @@ pd.col("price").rank()
 Window partition.
 
 ```python
-pd.col("price").rank().over(partition_by="symbol", order_by="timestamp")
+pw.col("price").rank().over(partition_by="symbol", order_by="timestamp")
 ```
 
 ##### Time-Series Methods
@@ -599,7 +599,7 @@ pd.col("price").rank().over(partition_by="symbol", order_by="timestamp")
 Shift values backward.
 
 ```python
-pd.col("price").lag(1)
+pw.col("price").lag(1)
 ```
 
 **`lead(periods: int) -> Expr`**
@@ -607,7 +607,7 @@ pd.col("price").lag(1)
 Shift values forward.
 
 ```python
-pd.col("price").lead(1)
+pw.col("price").lead(1)
 ```
 
 **`diff() -> Expr`**
@@ -615,7 +615,7 @@ pd.col("price").lead(1)
 Calculate difference.
 
 ```python
-pd.col("price").diff()
+pw.col("price").diff()
 ```
 
 **`pct_change() -> Expr`**
@@ -623,7 +623,7 @@ pd.col("price").diff()
 Calculate percent change.
 
 ```python
-pd.col("price").pct_change()
+pw.col("price").pct_change()
 ```
 
 ---
@@ -635,9 +635,9 @@ pd.col("price").pct_change()
 Start conditional expression.
 
 ```python
-pd.when(pd.col("price") > 100)
-  .then(pd.lit("high"))
-  .otherwise(pd.lit("low"))
+pw.when(pw.col("price") > 100)
+  .then(pw.lit("high"))
+  .otherwise(pw.lit("low"))
 ```
 
 #### `class When`
@@ -665,9 +665,9 @@ Specify default value.
 Read Parquet file.
 
 ```python
-df = pd.read_parquet("data.parquet")
-df = pd.read_parquet("data.parquet", columns=["col1", "col2"])
-df = pd.read_parquet("data.parquet", predicate="price > 100")
+df = pw.read_parquet("data.parquet")
+df = pw.read_parquet("data.parquet", columns=["col1", "col2"])
+df = pw.read_parquet("data.parquet", predicate="price > 100")
 ```
 
 #### `read_csv(path: str, separator: str = ",", has_header: bool = True) -> DataFrame`
@@ -675,8 +675,8 @@ df = pd.read_parquet("data.parquet", predicate="price > 100")
 Read CSV file.
 
 ```python
-df = pd.read_csv("data.csv")
-df = pd.read_csv("data.csv", separator=";")
+df = pw.read_csv("data.csv")
+df = pw.read_csv("data.csv", separator=";")
 ```
 
 #### `read_json(path: str, format: str = "json") -> DataFrame`
@@ -684,8 +684,8 @@ df = pd.read_csv("data.csv", separator=";")
 Read JSON file.
 
 ```python
-df = pd.read_json("data.json")
-df = pd.read_json("data.ndjson", format="ndjson")
+df = pw.read_json("data.json")
+df = pw.read_json("data.ndjson", format="ndjson")
 ```
 
 #### `scan_parquet(path: str) -> LazyFrame`
@@ -693,7 +693,7 @@ df = pd.read_json("data.ndjson", format="ndjson")
 Lazily scan Parquet file.
 
 ```python
-lazy_df = pd.scan_parquet("data.parquet")
+lazy_df = pw.scan_parquet("data.parquet")
 ```
 
 ---
@@ -705,9 +705,9 @@ lazy_df = pd.scan_parquet("data.parquet")
 Connect to WebSocket stream.
 
 ```python
-stream = pd.from_websocket(
+stream = pw.from_websocket(
     url="wss://stream.example.com",
-    schema={"price": pd.Float64, "timestamp": pd.Datetime("ms")},
+    schema={"price": pw.Float64, "timestamp": pw.Datetime("ms")},
     format="json"
 )
 
@@ -720,7 +720,7 @@ async for batch in stream.batches(size=1000):
 Read from REST API.
 
 ```python
-df = pd.read_rest_api(
+df = pw.read_rest_api(
     url="https://api.example.com/data",
     pagination="cursor",
     page_size=1000
@@ -762,26 +762,26 @@ ohlcv = ts.resample_ohlcv("5m", price_col="price", volume_col="volume")
 
 ```python
 # Integer types
-pd.Int8, pd.Int16, pd.Int32, pd.Int64
-pd.UInt8, pd.UInt16, pd.UInt32, pd.UInt64
+pw.Int8, pw.Int16, pw.Int32, pw.Int64
+pw.UInt8, pw.UInt16, pw.UInt32, pw.UInt64
 
 # Float types
-pd.Float32, pd.Float64
+pw.Float32, pw.Float64
 
 # Other types
-pd.Boolean
-pd.Utf8  # String
-pd.Date
-pd.Datetime("ms")  # Timestamp with millisecond precision
-pd.Datetime("us")  # Timestamp with microsecond precision
-pd.Datetime("ns")  # Timestamp with nanosecond precision
-pd.Duration
-pd.Time
+pw.Boolean
+pw.Utf8  # String
+pw.Date
+pw.Datetime("ms")  # Timestamp with millisecond precision
+pw.Datetime("us")  # Timestamp with microsecond precision
+pw.Datetime("ns")  # Timestamp with nanosecond precision
+pw.Duration
+pw.Time
 
 # Complex types
-pd.List(pd.Int64)
-pd.Struct({"name": pd.Utf8, "age": pd.Int64})
-pd.Categorical
+pw.List(pw.Int64)
+pw.Struct({"name": pw.Utf8, "age": pw.Int64})
+pw.Categorical
 ```
 
 ---

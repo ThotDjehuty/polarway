@@ -498,38 +498,6 @@ async def heartbeat(client: AsyncPolarwayClient, interval: float = 30.0):
 
 ## Example Projects
 
-### 1. Real-Time Crypto Arbitrage Bot
-
-```python
-"""
-Monitor multiple exchanges via WebSocket
-Detect price discrepancies in real-time
-Execute trades with <10ms latency
-"""
-
-async def arbitrage_bot():
-    streams = [
-        connect_exchange("binance"),
-        connect_exchange("coinbase"),
-        connect_exchange("kraken"),
-    ]
-    
-    async with AsyncPolarwayClient("localhost:50051") as polarway:
-        async for ticks in merge_streams(streams):
-            # Store in Polarway
-            df = await polarway.from_records(ticks)
-            
-            # Detect arbitrage
-            opportunities = await polarway.query("""
-                SELECT * FROM ticks
-                WHERE abs(binance_price - coinbase_price) > 0.01 * binance_price
-            """)
-            
-            # Execute trades
-            for opp in opportunities:
-                await execute_trade(opp)
-```
-
 ### 2. IoT Sensor Data Pipeline
 
 ```python

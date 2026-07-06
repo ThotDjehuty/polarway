@@ -44,16 +44,16 @@ Quick Start
    docker run -p 50051:50051 polarway/polarway-grpc
 
    # Use in Python
-   import polarway as pd
+   import polarway as pw
 
    # Connect to server
-   client = pd.connect("localhost:50051")
+   client = pw.connect("localhost:50051")
 
    # Create DataFrame
    df = client.from_dict({"x": [1, 2, 3], "y": [4, 5, 6]})
 
    # Operations
-   result = df.filter(pd.col("x") > 1).select(["x", "y"])
+   result = df.filter(pw.col("x") > 1).select(["x", "y"])
 
    # Convert to Python
    print(result.collect())
