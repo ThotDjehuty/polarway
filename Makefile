@@ -260,6 +260,51 @@ rebuild:  ## Clean and rebuild Polarway gRPC server locally
 test:  ## Run Polarway gRPC tests
 	cd polarway-grpc && cargo test --all-features
 
+# ============================================================================
+# Documentation Commands
+# ============================================================================
+
+.PHONY: docs-install
+docs-install:  ## Install documentation dependencies
+	@echo "📚 Installing documentation dependencies..."
+	@$(VENV_BIN)/uv pip install --upgrade --compile-bytecode \
+		-r docs/requirements.txt \
+		mkdocs-material mkdocstrings mkdocs-autorefs mkdocs-git-revision-date-localized-plugin
+	@echo "✅ Documentation dependencies installed!"
+
+.PHONY: docs-serve
+docs-serve: docs-install  ## Serve documentation locally with live reload
+	@echo "🚀 Starting documentation server at http://localhost:8000"
+	@$(VENV_BIN)/mkdocs serve --dev-addr=0.0.0.0:8000
+
+.PHONY: docs-build
+docs-build: docs-install  ## Build documentation for production
+	@echo "🔨 Building documentation..."
+	@$(VENV_BIN)/mkdocs build --clean --site-dir site
+	@echo "✅ Documentation built in ./site"
+
+.PHONY: docs-deploy
+docs-deploy: docs-build  ## Deploy documentation to ReadTheDocs (triggered via webhook)
+	@echo "📤 Documentation ready for ReadTheDocs deployment"
+	@echo "   Push to main branch to trigger automatic build on ReadTheDocs"
+	@echo "   Or use: mkdocs gh-deploy --force (for GitHub Pages)"
+
+.PHONY: docs-validate
+docs-validate: docs-install  ## Validate documentation links and structure
+	@echo "🔍 Validating documentation..."
+	@$(VENV_BIN)/mkdocs build --clean --site-dir /tmp/mkdocs-validation
+	@echo "✅ Documentation validation passed!"
+
+.PHONY: docs-check-links
+docs-check-links: docs-build  ## Check for broken links in documentation
+	@echo "🔗 Checking for broken links..."
+	@$(VENV_BIN)/python -c "import os, sys; from pathlib import Path; import re; errors = 0; [print(f'Broken link: {html_file} -> {link}') or setattr(sys, 'errors', getattr(sys, 'errors', 0) + 1) for html_file in Path('site').rglob('*.html') for link in re.findall(r'href=[\"\\']([^\"\\'#][^\"\\']*)[\"\\']', html_file.read_text()) if link.startswith('/') or link.startswith('./') or link.startswith('../') and not (Path('site') / link.lstrip('./')).exists()]; errors = getattr(sys, 'errors', 0); print(f'Found {errors} broken links') if errors else print('✅ All internal links valid'); sys.exit(1) if errors else None"
+
+.PHONY: docs-preview
+docs-preview: docs-build  ## Open built documentation in browser
+	@echo "🌐 Opening documentation preview..."
+	@open site/index.html 2>/dev/null || xdg-open site/index.html 2>/dev/null || echo "Open site/index.html manually"
+
 .PHONY: help
 help:  ## Display this help screen
 	@echo -e "\033[1m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"

@@ -168,6 +168,46 @@ async fn main() -> Result<()> {
 - Streaming analytics
 - Multi-stage transformations
 
+## Integrated Analytics with Optimiz-rs
+
+Polarway's high-performance DataFrame engine pairs seamlessly with **Optimiz-rs** for advanced analytics:
+
+<div class="grid cards" markdown>
+
+- :material-chart-line: **Time-Series Regime Detection**
+  
+  ---
+  
+  Use Polarway for streaming OHLCV data, then apply Optimiz-rs **Hidden Markov Models** for market regime classification.
+  
+  [Optimiz-rs HMM →](https://optimiz-r.readthedocs.io/en/latest/algorithms/hmm.html){ .md-button }
+
+- :material-brain: **Bayesian Inference on Streaming Data**
+  
+  ---
+  
+  Combine Polarway's distributed storage with Optimiz-rs **MCMC sampling** for probabilistic modeling on large datasets.
+  
+  [Optimiz-rs MCMC →](https://optimiz-r.readthedocs.io/en/latest/algorithms/mcmc.html){ .md-button }
+
+- :material-lightning-bolt: **Strategy Optimization**
+  
+  ---
+  
+  Load strategies from Polarway's hybrid storage, optimize with Optimiz-rs **Differential Evolution** (50-100× faster than Python).
+  
+  [Optimiz-rs DE →](https://optimiz-r.readthedocs.io/en/latest/algorithms/differential_evolution.html){ .md-button }
+
+- :material-account-group: **Mean Field Games for Market Dynamics**
+  
+  ---
+  
+  Model large agent populations with Optimiz-rs **MFG solver** on Polarway's time-series data.
+  
+  [Optimiz-rs MFG →](https://optimiz-r.readthedocs.io/en/latest/algorithms/mean_field_games.html){ .md-button }
+
+</div>
+
 ## Performance Characteristics
 
 | Metric | Value |
