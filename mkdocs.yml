@@ -87,6 +87,7 @@ theme:
         - content.tooltips
         - search.highlight
         - search.share
+        - announce.dismiss
     icon:
         repo: fontawesome/brands/github
     font:
@@ -131,13 +132,11 @@ extra_css:
 extra_javascript:
     - javascripts/version-switcher.js
 
-plugins:
-    - search:
-          lang: en
-          separator: '[\s\-\.]+'
-
-# Social cards
+# Announcement bar (top panel)
 extra:
+    announce:
+        dismissible: true
+        text: '🚀 <strong>Polarway v0.53.0</strong> — Hybrid Storage (Parquet + DuckDB + Cache) • 18× compression • <a href="CHANGELOG.md">View Changelog</a> • <a href="https://optimiz-r.readthedocs.io/">Optimiz-rs Docs</a> • <a href="https://hfthot-lab.eu/thotbook-amenti.html">HFThot Research Lab</a>'
     social:
         - icon: fontawesome/brands/github
           link: https://github.com/ThotDjehuty/polarway
@@ -146,3 +145,6 @@ extra:
         - icon: fontawesome/brands/python
           link: https://pypi.org/project/polarway/
     generator: false
+    # For version switcher
+    version:
+        provider: mike
